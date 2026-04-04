@@ -1,0 +1,18 @@
+{
+  "name": "intrinsic",
+  "version": "1.0.0",
+  "description": "Stock analysis with DCF valuation, qualitative research, and investment reporting",
+  "author": {
+    "name": "Kai Chen",
+    "url": "https://github.com/cimomo"
+  },
+  "repository": "https://github.com/cimomo/intrinsic",
+  "license": "MIT",
+  "skills": "./skills/",
+  "userConfig": {
+    "alpha_vantage_api_key": {
+      "description": "Alpha Vantage API key for financial data (free key at alphavantage.co/support/#api-key)",
+      "sensitive": true
+    }
+  }
+}
