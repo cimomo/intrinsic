@@ -10,7 +10,8 @@ A Claude Code plugin for stock analysis and [DCF](https://en.wikipedia.org/wiki/
 ## Install
 
 ```bash
-claude plugin add cimomo/intrinsic
+claude plugin marketplace add cimomo/intrinsic
+claude plugin install intrinsic
 ```
 
 Requires Python 3.10+ with `requests` (`pip install requests`) and an [Alpha Vantage API key](https://www.alphavantage.co/support/#api-key) (free, 25 requests/day).
