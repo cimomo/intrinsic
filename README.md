@@ -4,6 +4,9 @@
 
 A Claude Code plugin for equity research and DCF valuation.
 
+> [!CAUTION]
+> **Not financial advice.** This tool is for informational and educational purposes only. The analysis, valuations, and recommendations it produces are based on automated models and publicly available data, which may be incomplete, outdated, or incorrect. Always do your own due diligence and consult a qualified financial advisor before making investment decisions.
+
 ## What it does
 
 - **Research** a company's competitive position, growth outlook, and risks
@@ -66,10 +69,6 @@ data/MSFT/
 ## API limits
 
 Alpha Vantage free tier: 25 requests/day, 5/minute. A full fetch uses 6 API calls (~8 seconds with built-in rate limiting). Subsequent analyses reuse cached data with zero API calls.
-
-## Disclaimer
-
-This tool is for informational and educational purposes only. It is not financial advice. The analysis, valuations, and recommendations produced are based on automated models and publicly available data, which may be incomplete, outdated, or incorrect. Always do your own due diligence and consult a qualified financial advisor before making investment decisions.
 
 ## License
 
