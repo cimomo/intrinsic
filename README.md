@@ -67,6 +67,10 @@ data/MSFT/
 
 Alpha Vantage free tier: 25 requests/day, 5/minute. A full fetch uses 6 API calls (~8 seconds with built-in rate limiting). Subsequent analyses reuse cached data with zero API calls.
 
+## Disclaimer
+
+This tool is for informational and educational purposes only. It is not financial advice. The analysis, valuations, and recommendations produced are based on automated models and publicly available data, which may be incomplete, outdated, or incorrect. Always do your own due diligence and consult a qualified financial advisor before making investment decisions.
+
 ## License
 
 MIT
