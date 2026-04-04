@@ -1,6 +1,8 @@
 # Intrinsic
 
-A Claude Code plugin for stock analysis. Combines qualitative research with DCF valuation to produce opinionated investment reports.
+*From ticker to thesis.*
+
+A Claude Code plugin for equity research and DCF valuation.
 
 ## What it does
 
