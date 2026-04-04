@@ -7,14 +7,6 @@ A Claude Code plugin for equity research and DCF valuation.
 > [!CAUTION]
 > **Not financial advice.** This tool is for informational and educational purposes only. The analysis, valuations, and recommendations it produces are based on automated models and publicly available data, which may be incomplete, outdated, or incorrect. Always do your own due diligence and consult a qualified financial advisor before making investment decisions.
 
-## What it does
-
-- **Research** a company's competitive position, growth outlook, and risks
-- **Value** it with a full DCF model (10-year projection, sensitivity analysis, reverse DCF)
-- **Report** a synthesized investment thesis with actionable triggers
-
-All data comes from Alpha Vantage's API. Each stock gets its own folder with cached data, calibrated assumptions, and saved analyses.
-
 ## Install
 
 ```bash
@@ -25,37 +17,48 @@ Requires Python 3.10+ with `requests` installed (`pip install requests`).
 
 During setup, you'll be prompted for your Alpha Vantage API key. Get a free one at [alphavantage.co](https://www.alphavantage.co/support/#api-key) (25 requests/day).
 
-## Skills
+## How it works
 
-| Skill | Description |
-|-------|-------------|
-| `/fetch MSFT` | Fetch and cache financial data from Alpha Vantage |
-| `/research MSFT` | Qualitative analysis (growth, moat, margins, risks) |
-| `/calibrate MSFT` | Interactive review of DCF assumptions |
-| `/value MSFT` | Metrics + DCF valuation with sensitivity analysis |
-| `/report MSFT` | Synthesize research + valuation into investment report |
-| `/analyze MSFT` | Run the full pipeline: fetch, research, calibrate, value, report |
+`/analyze MSFT` runs a five-step pipeline:
 
-### Quick start
+1. **Fetch** — pulls financials from Alpha Vantage (income statements, balance sheet, cash flow, quote) and caches them locally
+2. **Research** — web searches for earnings results, competitive dynamics, management commentary, and the bear case. Produces structured signals: growth outlook, moat, margin trend, capital intensity, key risks, and the central debate the market is having about the stock
+3. **Calibrate** — sets DCF assumptions (revenue growth, target margin, sales-to-capital ratio) using both financial data and research signals. Runs a reverse DCF to show what growth the market is pricing in, then checks assumptions for coherence and runs sensitivity analysis
+4. **Value** — 10-year DCF with year-by-year projections, sensitivity grid, and a confidence-adjusted recommendation (research confidence downgrades the recommendation when uncertainty is high)
+5. **Report** — synthesizes everything into an opinionated verdict: what you're betting on, where your assumptions are vulnerable, and specific triggers that would change the thesis
 
-```
-/analyze MSFT --auto
-```
-
-This runs the full pipeline with automatic assumption calibration. For interactive calibration (you review each assumption), drop the `--auto` flag.
-
-### Selective fetching
+### Auto vs interactive
 
 ```
-/fetch MSFT quote              # refresh only the quote
-/fetch MSFT income_annual      # refresh specific sources
+/analyze MSFT --auto    # full pipeline, no questions asked
+/analyze MSFT           # pauses at calibrate for you to review each assumption
 ```
 
-Valid sources: `overview`, `income_annual`, `income_quarterly`, `balance_sheet`, `cash_flow`, `quote`, `all`
+The `--auto` flag matters at the calibrate step. In auto mode, assumptions are set from data + research signals, respecting any manual overrides you've previously set. In interactive mode, you review each core assumption with the data and research context, and decide what value to use.
+
+Interactive calibration is where you make the tool yours — you're not just running a model, you're encoding a specific view on the company.
+
+### Running steps individually
+
+Each step can run on its own:
+
+| Skill | When to use it |
+|-------|----------------|
+| `/fetch MSFT` | Refresh data (e.g., after earnings). Use `/fetch MSFT quote` for just the price |
+| `/research MSFT` | Update qualitative view without re-running the full pipeline |
+| `/calibrate MSFT` | Revisit assumptions after new information — the most hands-on step |
+| `/value MSFT` | Re-run valuation after tweaking assumptions |
+| `/report MSFT` | Regenerate the report from existing research + valuation files |
+
+The pipeline is designed so each step's output feeds the next. But if you've already fetched and researched, you can jump straight to `/calibrate` and `/value` without re-doing earlier work.
+
+### Assumptions persist
+
+DCF assumptions are saved per stock in `assumptions.json`. When you manually set a value during calibration, it's tracked as a manual override — future auto-calibrations won't touch it. This means `/analyze MSFT --auto` gets smarter over time: it respects your views while updating everything else from fresh data.
 
 ## Output
 
-Analysis files are saved to `data/<SYMBOL>/` in your project directory:
+Analysis files are saved to `data/<SYMBOL>/`:
 
 ```
 data/MSFT/
@@ -68,7 +71,7 @@ data/MSFT/
 
 ## API limits
 
-Alpha Vantage free tier: 25 requests/day, 5/minute. A full fetch uses 6 API calls (~8 seconds with built-in rate limiting). Subsequent analyses reuse cached data with zero API calls.
+Alpha Vantage free tier: 25 requests/day, 5/minute. A full fetch uses 6 API calls (~8 seconds with built-in rate limiting). Subsequent analyses reuse cached data — zero API calls.
 
 ## License
 
