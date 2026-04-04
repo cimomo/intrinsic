@@ -11,7 +11,9 @@
   "skills": "./skills/",
   "userConfig": {
     "alpha_vantage_api_key": {
-      "description": "Alpha Vantage API key for financial data (free key at alphavantage.co/support/#api-key)",
+      "title": "Alpha Vantage API Key",
+      "description": "API key for financial data (free key at alphavantage.co/support/#api-key)",
+      "type": "string",
       "sensitive": true
     }
   }
