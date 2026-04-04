@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0a0a14">
+<title>Intrinsic — From ticker to thesis</title>
+<meta name="description" content="A Claude Code plugin for equity research and DCF valuation. Real data, self-challenging assumptions, confidence-adjusted recommendations.">
+<meta property="og:title" content="Intrinsic — From ticker to thesis">
+<meta property="og:description" content="A Claude Code plugin for equity research and DCF valuation.">
+<meta property="og:image" content="https://raw.githubusercontent.com/cimomo/intrinsic/main/assets/internal/social-preview.png">
+<meta property="og:url" content="https://cimomo.github.io/intrinsic">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,300&display=swap">
+<style>
+  :root {
+    --bg: #0a0a14;
+    --bg-card: rgba(255,255,255,0.025);
+    --border: rgba(255,255,255,0.06);
+    --text: rgba(255,255,255,0.88);
+    --text-dim: rgba(255,255,255,0.45);
+    --text-dimmer: rgba(255,255,255,0.22);
+    --indigo: #6366f1;
+    --indigo-dim: #4338ca;
+    --gold: #d4a03c;
+    --gold-light: #f5d78e;
+    --gold-dark: #c8922a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', -apple-system, sans-serif;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  .container {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+
+  /* Nav */
+  nav {
+    padding: 28px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--gold);
+    text-decoration: none;
+    letter-spacing: 0.5px;
+  }
+  .nav-brand svg { flex-shrink: 0; }
+  .nav-links {
+    display: flex;
+    gap: 28px;
+    list-style: none;
+  }
+  .nav-links a {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--text); }
+
+  @media (max-width: 640px) {
+    .nav-links { display: none; }
+  }
+
+  /* Hero */
+  .hero {
+    padding: 80px 0 72px;
+    text-align: center;
+    position: relative;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 700px;
+    height: 700px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(99,102,241,0.06) 0%, rgba(212,160,60,0.03) 40%, transparent 60%);
+    pointer-events: none;
+  }
+  .hero-gem {
+    margin-bottom: 36px;
+  }
+  .hero h1 {
+    font-size: clamp(48px, 8vw, 80px);
+    font-weight: 800;
+    letter-spacing: -3px;
+    line-height: 1;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dark));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero-tagline {
+    font-size: 24px;
+    font-weight: 300;
+    font-style: italic;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+  }
+  .hero-sub {
+    font-size: 17px;
+    color: var(--text-dimmer);
+    font-weight: 300;
+    max-width: 520px;
+    margin: 0 auto 44px;
+  }
+  .hero-cta {
+    display: inline-block;
+    padding: 14px 28px;
+    background: var(--bg-card);
+    border: 1px solid rgba(212,160,60,0.2);
+    border-radius: 12px;
+    font-family: 'DM Sans', monospace;
+    font-size: 14px;
+    color: var(--text-dim);
+    text-decoration: none;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    transition: border-color 0.2s;
+  }
+  .hero-cta:hover { border-color: rgba(212,160,60,0.4); }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0 auto;
+    max-width: 200px;
+  }
+
+  /* Section */
+  .section {
+    padding: 80px 0;
+  }
+  .section-header {
+    text-align: center;
+    margin-bottom: 52px;
+  }
+  .section-header h2 {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: -1.5px;
+    margin-bottom: 14px;
+  }
+  .section-header p {
+    font-size: 17px;
+    color: var(--text-dim);
+    font-weight: 300;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+
+  /* Pipeline */
+  .pipeline {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+  .pipe-step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+  }
+  .pipe-num {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    position: relative;
+    z-index: 1;
+  }
+  .pipe-step:nth-child(1) .pipe-num,
+  .pipe-step:nth-child(2) .pipe-num { border: 2px solid rgba(99,102,241,0.4); color: #818cf8; }
+  .pipe-step:nth-child(3) .pipe-num { border: 2px solid rgba(212,160,60,0.5); color: var(--gold-light); box-shadow: 0 0 20px rgba(212,160,60,0.08); }
+  .pipe-step:nth-child(4) .pipe-num { border: 2px solid rgba(212,160,60,0.4); color: var(--gold-light); }
+  .pipe-step:nth-child(5) .pipe-num { border: 2px solid rgba(212,160,60,0.35); color: var(--gold); }
+
+  .pipe-name {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .pipe-desc {
+    font-size: 13px;
+    color: var(--text-dimmer);
+    text-align: center;
+    max-width: 140px;
+    line-height: 1.5;
+  }
+  .pipe-arrow {
+    position: absolute;
+    top: 23px;
+    right: -16px;
+    width: 32px;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(99,102,241,0.2), rgba(212,160,60,0.15));
+    z-index: 0;
+  }
+  .pipe-arrow::after {
+    content: '';
+    position: absolute;
+    right: -3px;
+    top: -2px;
+    border-top: 3px solid transparent;
+    border-bottom: 3px solid transparent;
+    border-left: 5px solid rgba(212,160,60,0.2);
+  }
+  .pipe-step:last-child .pipe-arrow { display: none; }
+
+  @media (max-width: 640px) {
+    .pipeline { flex-direction: column; gap: 24px; }
+    .pipe-arrow { display: none; }
+  }
+
+  /* Why section */
+  .why-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+  .why-card {
+    padding: 32px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--bg-card);
+  }
+  .why-card h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--gold-light);
+  }
+  .why-card p {
+    font-size: 14px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+  .why-card .contrast {
+    color: var(--text-dimmer);
+    font-weight: 400;
+  }
+
+  @media (max-width: 640px) {
+    .why-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Features */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+  .feat-card {
+    padding: 32px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--bg-card);
+  }
+  .feat-card h3 {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+  }
+  .feat-card:nth-child(1) h3 { color: #818cf8; }
+  .feat-card:nth-child(2) h3 { color: var(--gold-light); }
+  .feat-card:nth-child(3) h3 { color: var(--gold); }
+
+  .feat-card p {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  @media (max-width: 640px) {
+    .features-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Output */
+  .output-block {
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 28px 32px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text-dimmer);
+  }
+  .output-block .dir { color: var(--gold); font-weight: 600; }
+  .output-block .file { color: var(--text-dim); }
+  .output-block .comment { color: var(--text-dimmer); font-style: italic; }
+
+  /* CTA */
+  .cta-section {
+    padding: 80px 0;
+    text-align: center;
+  }
+  .cta-section h2 {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: -1.5px;
+    margin-bottom: 14px;
+  }
+  .cta-section p {
+    font-size: 17px;
+    color: var(--text-dim);
+    font-weight: 300;
+    margin-bottom: 32px;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .cta-install {
+    display: inline-block;
+    padding: 14px 28px;
+    background: var(--bg-card);
+    border: 1px solid rgba(212,160,60,0.2);
+    border-radius: 12px;
+    font-family: 'DM Sans', monospace;
+    font-size: 15px;
+    color: var(--text-dim);
+    letter-spacing: 0.3px;
+    margin-bottom: 20px;
+  }
+  .cta-github {
+    display: block;
+    font-size: 14px;
+    color: var(--text-dimmer);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .cta-github:hover { color: var(--text-dim); }
+
+  /* Disclaimer */
+  .disclaimer {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px 24px;
+    border: 1px solid rgba(212,160,60,0.15);
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--text-dimmer);
+    text-align: center;
+    line-height: 1.6;
+  }
+  .disclaimer strong { color: var(--gold); }
+
+  /* Footer */
+  footer {
+    padding: 40px 0;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  footer span {
+    font-size: 13px;
+    color: var(--text-dimmer);
+  }
+  footer a {
+    font-size: 13px;
+    color: var(--text-dimmer);
+    text-decoration: none;
+  }
+  footer a:hover { color: var(--text-dim); }
+
+  .strip {
+    font-size: 12px;
+    color: var(--text-dimmer);
+    text-align: center;
+    padding: 20px 0 0;
+    letter-spacing: 0.3px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<div class="container">
+  <nav>
+    <a href="/" class="nav-brand">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="22" height="22">
+        <defs>
+          <linearGradient id="ng" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#d4a03c"/><stop offset="50%" style="stop-color:#f5d78e"/><stop offset="100%" style="stop-color:#c8922a"/></linearGradient>
+          <linearGradient id="ni" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#6366f1"/><stop offset="100%" style="stop-color:#4338ca"/></linearGradient>
+        </defs>
+        <polygon points="256,96 416,256 256,416 96,256" fill="none" stroke="url(#ni)" stroke-width="3" stroke-linejoin="round" opacity="0.5"/>
+        <polygon points="256,196 316,256 256,316 196,256" fill="none" stroke="url(#ng)" stroke-width="4" stroke-linejoin="round" opacity="0.9"/>
+        <circle cx="256" cy="256" r="6" fill="url(#ng)" opacity="0.95"/>
+      </svg>
+      Intrinsic
+    </a>
+    <ul class="nav-links">
+      <li><a href="#pipeline">Pipeline</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="https://github.com/cimomo/intrinsic">GitHub</a></li>
+    </ul>
+  </nav>
+</div>
+
+<!-- Hero -->
+<div class="container">
+  <div class="hero">
+    <div class="hero-gem">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100" height="100">
+        <defs>
+          <linearGradient id="hg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#6366f1"/><stop offset="100%" style="stop-color:#4338ca"/></linearGradient>
+          <linearGradient id="hg2" x1="100%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#4338ca"/><stop offset="100%" style="stop-color:#6366f1"/></linearGradient>
+          <linearGradient id="hgold" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#d4a03c"/><stop offset="50%" style="stop-color:#f5d78e"/><stop offset="100%" style="stop-color:#c8922a"/></linearGradient>
+          <linearGradient id="hgold2" x1="100%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#c8922a"/><stop offset="50%" style="stop-color:#f5d78e"/><stop offset="100%" style="stop-color:#d4a03c"/></linearGradient>
+          <linearGradient id="hdeep" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#3d3580"/><stop offset="100%" style="stop-color:#2a2266"/></linearGradient>
+        </defs>
+        <polygon points="256,96 416,256 256,416 96,256" fill="none" stroke="url(#hg1)" stroke-width="2" stroke-linejoin="round" opacity="0.4"/>
+        <line x1="256" y1="96" x2="196" y2="256" stroke="url(#hg1)" stroke-width="1" opacity="0.15"/>
+        <line x1="256" y1="96" x2="316" y2="256" stroke="url(#hg1)" stroke-width="1" opacity="0.15"/>
+        <line x1="416" y1="256" x2="256" y2="196" stroke="url(#hg1)" stroke-width="1" opacity="0.15"/>
+        <line x1="416" y1="256" x2="256" y2="316" stroke="url(#hg2)" stroke-width="1" opacity="0.15"/>
+        <line x1="256" y1="416" x2="316" y2="256" stroke="url(#hg2)" stroke-width="1" opacity="0.15"/>
+        <line x1="256" y1="416" x2="196" y2="256" stroke="url(#hg2)" stroke-width="1" opacity="0.15"/>
+        <line x1="96" y1="256" x2="256" y2="196" stroke="url(#hg2)" stroke-width="1" opacity="0.15"/>
+        <line x1="96" y1="256" x2="256" y2="316" stroke="url(#hg1)" stroke-width="1" opacity="0.15"/>
+        <polygon points="256,196 316,256 256,316 196,256" fill="url(#hdeep)" opacity="0.4"/>
+        <polygon points="256,196 316,256 256,316 196,256" fill="none" stroke="url(#hgold)" stroke-width="3" stroke-linejoin="round" opacity="0.9"/>
+        <circle cx="256" cy="256" r="8" fill="url(#hgold)" opacity="0.95"/>
+        <circle cx="256" cy="256" r="4.5" fill="#0a0a14"/>
+        <circle cx="256" cy="256" r="2" fill="url(#hgold2)" opacity="0.95"/>
+      </svg>
+    </div>
+    <h1>Intrinsic</h1>
+    <div class="hero-tagline">From ticker to thesis.</div>
+    <p class="hero-sub">A Claude Code plugin for equity research and DCF valuation &mdash; with built-in checks that challenge your assumptions before you commit to them.</p>
+    <div class="hero-cta">claude plugin install intrinsic</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- Pipeline -->
+<div class="container" id="pipeline">
+  <div class="section">
+    <div class="section-header">
+      <h2>Five steps, one command</h2>
+      <p>Type <code style="color:var(--gold);">/analyze MSFT</code> and each step feeds the next.</p>
+    </div>
+    <div class="pipeline">
+      <div class="pipe-step">
+        <div class="pipe-num">1</div>
+        <div class="pipe-name">Fetch</div>
+        <div class="pipe-desc">Pull financials from Alpha Vantage, cache locally</div>
+        <div class="pipe-arrow"></div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">2</div>
+        <div class="pipe-name">Research</div>
+        <div class="pipe-desc">Web research with a contrarian search built in</div>
+        <div class="pipe-arrow"></div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">3</div>
+        <div class="pipe-name">Calibrate</div>
+        <div class="pipe-desc">Set assumptions with reverse DCF anchoring</div>
+        <div class="pipe-arrow"></div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">4</div>
+        <div class="pipe-name">Value</div>
+        <div class="pipe-desc">10-year DCF with sensitivity grid</div>
+        <div class="pipe-arrow"></div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">5</div>
+        <div class="pipe-name">Report</div>
+        <div class="pipe-desc">Opinionated verdict with vulnerability analysis</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- Why not just ask Claude -->
+<div class="container">
+  <div class="section">
+    <div class="section-header">
+      <h2>Why not just ask Claude?</h2>
+      <p>You could. But plain-session analysis has blind spots.</p>
+    </div>
+    <div class="why-grid">
+      <div class="why-card">
+        <h3>Real data</h3>
+        <p><span class="contrast">Plain Claude invents numbers.</span> Intrinsic fetches real financials from Alpha Vantage and caches them for reuse.</p>
+      </div>
+      <div class="why-card">
+        <h3>Structured pipeline</h3>
+        <p><span class="contrast">Claude skips steps when it's in a hurry.</span> The five-step pipeline can't cut corners &mdash; each step depends on the prior.</p>
+      </div>
+      <div class="why-card">
+        <h3>Self-challenge</h3>
+        <p><span class="contrast">Claude won't push back on its own conclusions.</span> Intrinsic has coherence checks, sensitivity analysis, and pre-mortem reasoning.</p>
+      </div>
+      <div class="why-card">
+        <h3>Persistence</h3>
+        <p><span class="contrast">Assumptions vanish when the session ends.</span> Intrinsic saves them per stock, with manual overrides that survive across runs.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- Features -->
+<div class="container" id="features">
+  <div class="section">
+    <div class="section-header">
+      <h2>Built-in rigor</h2>
+      <p>Three mechanisms that keep your analysis honest.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feat-card">
+        <h3>Reverse DCF</h3>
+        <p>Before you set a single assumption, the tool calculates what growth rate the current price already implies. If you're more bullish than the market, you'll know exactly where you diverge.</p>
+      </div>
+      <div class="feat-card">
+        <h3>Coherence &amp; Sensitivity</h3>
+        <p>After all assumptions are set, the tool checks them against each other and against your research signals. Then it shows which assumption has the biggest impact on fair value.</p>
+      </div>
+      <div class="feat-card">
+        <h3>Confidence-Adjusted</h3>
+        <p>Recommendations downgrade automatically when research confidence is low. A 20% upside becomes HOLD instead of BUY when the inputs are uncertain.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- Output -->
+<div class="container">
+  <div class="section">
+    <div class="section-header">
+      <h2>What you get</h2>
+      <p>Each stock gets its own folder with persistent, dated analysis files.</p>
+    </div>
+    <div class="output-block">
+      <span class="dir">data/MSFT/</span><br>
+      &nbsp;&nbsp;<span class="file">financial_data.json</span> <span class="comment"># cached API data</span><br>
+      &nbsp;&nbsp;<span class="file">assumptions.json</span> <span class="comment"># DCF assumptions</span><br>
+      &nbsp;&nbsp;<span class="file">research_2026-04-03.md</span> <span class="comment"># qualitative analysis</span><br>
+      &nbsp;&nbsp;<span class="file">valuation_2026-04-03.md</span> <span class="comment"># DCF valuation</span><br>
+      &nbsp;&nbsp;<span class="file">analysis_2026-04-03.md</span> <span class="comment"># investment report</span>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- CTA -->
+<div class="container">
+  <div class="cta-section">
+    <h2>Try it</h2>
+    <p>One marketplace, one install, one command.</p>
+    <div class="cta-install">claude plugin marketplace add cimomo/intrinsic<br>claude plugin install intrinsic</div>
+    <a href="https://github.com/cimomo/intrinsic" class="cta-github">View on GitHub &rarr;</a>
+  </div>
+</div>
+
+<!-- Disclaimer -->
+<div class="container">
+  <div class="disclaimer">
+    <strong>Not financial advice.</strong> This tool is for informational and educational purposes only. Do your own due diligence.
+  </div>
+</div>
+
+<!-- Footer -->
+<div class="container">
+  <div class="strip">
+    Real data &middot; Self-challenging &middot; Confidence-adjusted &middot; 150 tests &middot; MIT licensed
+  </div>
+  <footer>
+    <span>MIT License &middot; Kai Chen</span>
+    <a href="https://github.com/cimomo/intrinsic">github.com/cimomo/intrinsic</a>
+  </footer>
+</div>
+
+</body>
+</html>
