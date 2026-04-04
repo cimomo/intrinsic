@@ -13,7 +13,7 @@ All data comes from Alpha Vantage's API. Each stock gets its own folder with cac
 ## Install
 
 ```bash
-claude plugin add /path/to/intrinsic
+claude plugin add cimomo/intrinsic
 ```
 
 Requires Python 3.10+ with `requests` installed (`pip install requests`).
