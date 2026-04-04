@@ -1,55 +1,54 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="facetLeft" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#4338ca"/>
-      <stop offset="100%" stop-color="#3730a3"/>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#141428"/>
+      <stop offset="100%" style="stop-color:#0c0c1e"/>
     </linearGradient>
-    <linearGradient id="facetRight" x1="1" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#6366f1"/>
-      <stop offset="100%" stop-color="#4f46e5"/>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#d4a03c"/>
+      <stop offset="50%" style="stop-color:#f5d78e"/>
+      <stop offset="100%" style="stop-color:#c8922a"/>
     </linearGradient>
-    <linearGradient id="facetTopLeft" x1="0" y1="1" x2="1" y2="0">
-      <stop offset="0%" stop-color="#818cf8"/>
-      <stop offset="100%" stop-color="#a5b4fc"/>
+    <linearGradient id="gold2" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#c8922a"/>
+      <stop offset="50%" style="stop-color:#f5d78e"/>
+      <stop offset="100%" style="stop-color:#d4a03c"/>
     </linearGradient>
-    <linearGradient id="facetTopRight" x1="1" y1="1" x2="0" y2="0">
-      <stop offset="0%" stop-color="#6366f1"/>
-      <stop offset="100%" stop-color="#818cf8"/>
+    <linearGradient id="deep" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3d3580"/>
+      <stop offset="100%" style="stop-color:#2a2266"/>
     </linearGradient>
-    <linearGradient id="innerGlow" x1="0.5" y1="0" x2="0.5" y2="1">
-      <stop offset="0%" stop-color="#fcd34d"/>
-      <stop offset="100%" stop-color="#f59e0b"/>
-    </linearGradient>
-    <linearGradient id="innerLeft" x1="1" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#fbbf24"/>
-      <stop offset="100%" stop-color="#d97706"/>
-    </linearGradient>
-    <linearGradient id="innerRight" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#fcd34d"/>
-      <stop offset="100%" stop-color="#f59e0b"/>
+    <linearGradient id="indigo" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#4338ca"/>
     </linearGradient>
   </defs>
-
-  <!-- Outer diamond -->
-  <!-- Left facet -->
-  <polygon points="256,72 88,264 256,440" fill="url(#facetLeft)"/>
-  <!-- Right facet -->
-  <polygon points="256,72 424,264 256,440" fill="url(#facetRight)"/>
-  <!-- Top-left crown facet -->
-  <polygon points="256,72 184,176 256,208" fill="url(#facetTopLeft)"/>
-  <!-- Top-right crown facet -->
-  <polygon points="256,72 328,176 256,208" fill="url(#facetTopRight)"/>
-  <!-- Lower-left depth facet -->
-  <polygon points="184,176 256,208 256,440 88,264" fill="#312e81" opacity="0.35"/>
-  <!-- Lower-right depth facet -->
-  <polygon points="328,176 256,208 256,440 424,264" fill="#1e1b4b" opacity="0.25"/>
-
+  <!-- Background -->
+  <rect x="16" y="16" width="480" height="480" rx="96" fill="url(#bg)"/>
+  <!-- Outer glow ring -->
+  <polygon points="256,88 420,256 256,424 92,256" fill="none" stroke="url(#indigo)" stroke-width="0.5" opacity="0.06"/>
+  <!-- Outer diamond — the surface (price) -->
+  <polygon points="256,112 400,256 256,400 112,256" fill="none" stroke="url(#indigo)" stroke-width="2" stroke-linejoin="round" opacity="0.4"/>
+  <!-- Crown facets — top -->
+  <line x1="256" y1="112" x2="208" y2="208" stroke="url(#indigo)" stroke-width="1.5" stroke-linecap="round" opacity="0.25"/>
+  <line x1="256" y1="112" x2="304" y2="208" stroke="url(#indigo)" stroke-width="1.5" stroke-linecap="round" opacity="0.25"/>
+  <!-- Crown facets — right -->
+  <line x1="400" y1="256" x2="304" y2="208" stroke="url(#indigo)" stroke-width="1.5" stroke-linecap="round" opacity="0.25"/>
+  <line x1="400" y1="256" x2="304" y2="304" stroke="url(#indigo)" stroke-width="1.5" stroke-linecap="round" opacity="0.2"/>
+  <!-- Crown facets — bottom -->
+  <line x1="256" y1="400" x2="304" y2="304" stroke="url(#indigo)" stroke-width="1.5" stroke-linecap="round" opacity="0.2"/>
+  <line x1="256" y1="400" x2="208" y2="304" stroke="url(#indigo)" stroke-width="1.5" stroke-linecap="round" opacity="0.2"/>
+  <!-- Crown facets — left -->
+  <line x1="112" y1="256" x2="208" y2="208" stroke="url(#indigo)" stroke-width="1.5" stroke-linecap="round" opacity="0.25"/>
+  <line x1="112" y1="256" x2="208" y2="304" stroke="url(#indigo)" stroke-width="1.5" stroke-linecap="round" opacity="0.2"/>
   <!-- Inner diamond — the intrinsic value -->
-  <!-- Left inner facet -->
-  <polygon points="256,172 200,264 256,348" fill="url(#innerLeft)"/>
-  <!-- Right inner facet -->
-  <polygon points="256,172 312,264 256,348" fill="url(#innerRight)"/>
-
-  <!-- Subtle inner highlight -->
-  <polygon points="256,172 228,218 256,232 284,218" fill="#fef3c7" opacity="0.6"/>
+  <polygon points="256,208 304,256 256,304 208,256" fill="url(#deep)" opacity="0.5"/>
+  <polygon points="256,208 304,256 256,304 208,256" fill="none" stroke="url(#gold)" stroke-width="3" stroke-linejoin="round" opacity="0.9"/>
+  <!-- Inner facet cross -->
+  <line x1="256" y1="208" x2="256" y2="304" stroke="url(#gold)" stroke-width="1" opacity="0.3"/>
+  <line x1="208" y1="256" x2="304" y2="256" stroke="url(#gold)" stroke-width="1" opacity="0.3"/>
+  <!-- Center hub — the core value -->
+  <circle cx="256" cy="256" r="8" fill="url(#gold)" opacity="0.95"/>
+  <circle cx="256" cy="256" r="4.5" fill="#141428"/>
+  <circle cx="256" cy="256" r="2" fill="url(#gold2)" opacity="0.95"/>
 </svg>
