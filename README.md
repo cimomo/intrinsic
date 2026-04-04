@@ -25,7 +25,7 @@ Takes a few minutes. Produces a research document, a DCF valuation, and an inves
 
 ## How it works
 
-`/analyze` chains five steps. Each one feeds the next — research shapes assumptions, assumptions drive the DCF, the report checks everything against itself.
+`/analyze` chains five steps. Each one feeds the next — research shapes assumptions, assumptions drive the valuation, the report checks everything against itself.
 
 ### 1. Fetch
 
@@ -35,7 +35,7 @@ Pulls financials from Alpha Vantage and caches them locally. Subsequent analyses
 
 Searches the web for earnings results, competitive dynamics, and management commentary. Then does a targeted contrarian search — if the initial read is bullish, it looks for bear arguments, and vice versa.
 
-The output is structured signals that the rest of the pipeline consumes:
+The output is structured signals that feed the rest of the pipeline:
 
 - **Growth outlook** (Accelerating / Stable / Decelerating) with a confidence level
 - **Moat** (Wide / Narrow / None) and direction (Widening / Stable / Narrowing)
@@ -46,29 +46,29 @@ The output is structured signals that the rest of the pipeline consumes:
 
 ### 3. Calibrate
 
-Before you set a single assumption, calibrate runs a **reverse DCF** — solving for the revenue growth rate the current stock price implies. If you assume 20% growth and the market prices in 13%, you need to know why you think the market is wrong.
+Before you set a single assumption, calibrate calculates what growth rate the current stock price already implies. This anchors everything: if you assume 20% growth and the market prices in 13%, you need to know why you think the market is wrong.
 
-For each core assumption (revenue growth, operating margin, sales-to-capital ratio), calibrate shows what the data suggests, what the research signals point to, and a recommended value with reasoning. You choose: recommended, current, or your own value. Your own values are tracked as **manual overrides** — specific bets that persist across future runs.
+You review three core assumptions — how fast revenue will grow, what margins the company will reach, and how efficiently it converts capital into revenue. For each one, calibrate shows what the data suggests, what the research signals point to, and a recommended value with reasoning. You choose: recommended, current, or your own value. Your own values are tracked as **manual overrides** — specific bets that persist across future runs.
 
 After all assumptions are set, three checks run:
 
 - **Coherence check** — do the assumptions make sense together? If all three lean bullish, it says so: "this is a compounding bet."
-- **Sensitivity analysis** — which assumption swings fair value the most? If it's also the one with Low confidence from research, it flags the combination.
+- **Sensitivity analysis** — which assumption has the biggest impact on fair value? If it's also the one with Low confidence from research, it flags the combination.
 - **Pre-mortem** — "assume this stock drops 40% in 12 months. What went wrong?"
 
 ### 4. Value
 
-10-year DCF with year-by-year projections, tapering growth, terminal value, and a sensitivity grid. Includes trailing and forward FCF yield, sanity checks (e.g., terminal value dominating the valuation), and a confidence-adjusted recommendation.
+Projects free cash flows over 10 years, discounts them back to today, and calculates what the stock is worth. You get a fair value estimate, a range showing how it shifts under different assumptions, and a recommendation.
 
-Confidence-adjusted means the tool downgrades its own output when the inputs are uncertain. A stock showing 20% upside would normally be a BUY — but if research confidence is Medium, it becomes a HOLD. When upside is near zero: "your assumptions produce no margin of safety."
+The recommendation is **confidence-adjusted** — the tool downgrades its own output when the research inputs are uncertain. A stock showing 20% upside would normally be a BUY, but if research confidence is Medium, it becomes a HOLD. When upside is near zero: "your assumptions produce no margin of safety."
 
 ### 5. Report
 
 Synthesizes everything into an opinionated verdict:
 
-- **What You're Paying For** — manual overrides framed as a thesis. The gap between your assumed growth and market-implied growth is your bet, stated plainly.
-- **Alignment Check** — do your assumptions match the research? Bullish growth assumption + Decelerating signal with Low confidence = flagged disconnect.
-- **Key Assumption Vulnerability** — the one assumption that flips the recommendation, with the specific threshold.
+- **What You're Paying For** — your manual overrides framed as a thesis. What do you believe that the market doesn't?
+- **Alignment Check** — do your assumptions match the research? If you're bullish on growth but research says Decelerating with Low confidence, it flags the disconnect.
+- **Where You're Most Exposed** — the one assumption that would flip the recommendation if wrong, with the specific threshold.
 - **What Would Change This** — concrete triggers with timeframes, not "if growth slows."
 
 ## Why not just ask Claude to analyze a stock?
@@ -78,7 +78,7 @@ You could. But:
 - **Hallucinated financials** — plain-session analysis invents numbers. Intrinsic fetches real data from Alpha Vantage.
 - **No structure** — Claude skips steps when it's in a hurry. The pipeline can't cut corners.
 - **No persistence** — assumptions vanish when the session ends. Intrinsic saves them per stock, across runs.
-- **No self-challenge** — Claude won't push back on its own conclusions. Intrinsic has a reverse DCF anchor, coherence check, sensitivity analysis, and pre-mortem built into every run.
+- **No self-challenge** — Claude won't push back on its own conclusions. Intrinsic checks your assumptions for coherence, shows you which ones matter most, and asks what would have to go wrong for you to lose money.
 
 ## Running steps individually
 
