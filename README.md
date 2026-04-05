@@ -47,13 +47,13 @@ The output is structured signals that the rest of the pipeline consumes:
 - **Key risks** — the 2-3 things that could break the thesis
 - **Key debate** — the central question the market is wrestling with
 
-These signals aren't decoration — they directly influence the assumptions in step 3. An "Accelerating" growth signal with "High" confidence justifies a higher growth rate than "Stable" with "Medium" confidence.
+These signals aren't decoration — they directly influence the assumptions in step 3. An "Accelerating" growth signal with "High" confidence justifies a higher growth rate than "Stable" with "Medium" confidence. The research skill also reviews its own signal ratings against the evidence, downgrading any that are more generous than the prose supports.
 
 ### 3. Calibrate
 
 This is where assumptions get pressure-tested.
 
-Before you set a single number, calibrate calculates what growth rate the current stock price already implies. This anchors everything: if you assume 20% growth and the market prices in 13%, you need to know why you think the market is wrong.
+Before you set a single number, calibrate calculates what growth rate the current stock price already implies. This anchors everything: if you assume 20% growth and the market prices in 13%, the tool asks you directly — what do you see that the market doesn't?
 
 For each core assumption (revenue growth, operating margin, sales-to-capital ratio), calibrate shows what the data suggests, what the research signals point to, and a recommended value with reasoning. In interactive mode, you choose: recommended, current, or your own value. Your own values are tracked as **manual overrides** — specific bets that persist across future runs.
 
