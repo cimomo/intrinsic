@@ -470,7 +470,7 @@
     <h1>Intrinsic</h1>
     <div class="hero-tagline">From ticker to thesis.</div>
     <p class="hero-sub">A Claude Code plugin for stock analysis and DCF valuation. The math is precise; the inputs are guesses. Intrinsic focuses on the inputs.</p>
-    <div class="hero-cta">claude plugin install intrinsic</div>
+    <div class="hero-cta">claude plugin marketplace add cimomo/intrinsic<br>claude plugin install intrinsic</div>
   </div>
 </div>
 
@@ -514,6 +514,7 @@
         <div class="pipe-desc">Checks assumptions against research and flags disconnects</div>
       </div>
     </div>
+    <p style="text-align:center; margin-top:32px;"><a href="https://github.com/cimomo/intrinsic#how-it-works" style="font-size:14px; color:var(--text-dimmer); text-decoration:none; transition:color 0.2s;" onmouseover="this.style.color='rgba(255,255,255,0.45)'" onmouseout="this.style.color='var(--text-dimmer)'">Read the full walkthrough &rarr;</a></p>
   </div>
 </div>
 
@@ -537,7 +538,7 @@
       </div>
       <div class="why-card">
         <h3>Self-challenge</h3>
-        <p><span class="contrast">Claude won't push back on its own conclusions.</span> Intrinsic has coherence checks, sensitivity analysis, and pre-mortem reasoning.</p>
+        <p><span class="contrast">Claude won't push back on its own conclusions.</span> Intrinsic reviews its own signal ratings, checks assumptions against each other, and asks what would have to go wrong for you to lose money.</p>
       </div>
       <div class="why-card">
         <h3>Persistence</h3>
@@ -575,17 +576,16 @@
 
 <div class="divider"></div>
 
-<!-- Output -->
+<!-- Persistence -->
 <div class="container">
   <div class="section">
     <div class="section-header">
-      <h2>What you get</h2>
-      <p>Each stock gets its own folder with persistent, dated analysis files.</p>
+      <h2>Your analysis persists</h2>
+      <p>Assumptions, research, and valuations are saved per stock and reusable across future runs. Re-analyze next quarter and your manual overrides carry forward &mdash; only the data-driven assumptions update.</p>
     </div>
     <div class="output-block">
       <span class="dir">data/MSFT/</span><br>
-      &nbsp;&nbsp;<span class="file">financial_data.json</span> <span class="comment"># cached API data</span><br>
-      &nbsp;&nbsp;<span class="file">assumptions.json</span> <span class="comment"># DCF assumptions</span><br>
+      &nbsp;&nbsp;<span class="file">assumptions.json</span> <span class="comment"># your calibrated assumptions + manual overrides</span><br>
       &nbsp;&nbsp;<span class="file">research_2026-04-03.md</span> <span class="comment"># qualitative analysis</span><br>
       &nbsp;&nbsp;<span class="file">valuation_2026-04-03.md</span> <span class="comment"># DCF valuation</span><br>
       &nbsp;&nbsp;<span class="file">analysis_2026-04-03.md</span> <span class="comment"># investment report</span>
@@ -615,7 +615,7 @@
 <!-- Footer -->
 <div class="container">
   <div class="strip">
-    Real data &middot; Self-challenging &middot; Confidence-adjusted &middot; 150 tests &middot; MIT licensed
+    Real data &middot; Self-challenging &middot; Confidence-adjusted &middot; MIT licensed
   </div>
   <footer>
     <span>MIT License &middot; Kai Chen</span>
