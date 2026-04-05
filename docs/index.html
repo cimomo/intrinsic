@@ -487,7 +487,7 @@
       <div class="pipe-step">
         <div class="pipe-num">1</div>
         <div class="pipe-name">Fetch</div>
-        <div class="pipe-desc">Pull financials from Alpha Vantage, cache locally</div>
+        <div class="pipe-desc">Pull real financials from Alpha Vantage — no hallucinated numbers</div>
         <div class="pipe-arrow"></div>
       </div>
       <div class="pipe-step">
@@ -576,6 +576,25 @@
 
 <div class="divider"></div>
 
+<!-- Sample output -->
+<div class="container">
+  <div class="section">
+    <div class="section-header">
+      <h2>What it actually says</h2>
+      <p>From a real analysis &mdash; not a mockup.</p>
+    </div>
+    <div class="output-block" style="max-width: 620px; line-height: 2;">
+      <span style="color:var(--gold-light); font-weight:600;">What You're Paying For</span><br>
+      <br>
+      <span class="file">Market-implied growth: 13.3%. You assume 16%.</span><br>
+      <br>
+      <span class="comment">You're betting that Cloud acceleration ($240B backlog)<br>and Search resilience deliver modestly more growth than<br>the market prices in. The 10% upside comes entirely from<br>this gap &mdash; not from margin optimism.</span>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
 <!-- Persistence -->
 <div class="container">
   <div class="section">
@@ -599,7 +618,7 @@
 <div class="container">
   <div class="cta-section">
     <h2>Try it</h2>
-    <p>One marketplace, one install, one command.</p>
+    <p>Install, then run <code style="color:var(--gold);">/analyze MSFT</code> in any project.</p>
     <div class="cta-install">claude plugin marketplace add cimomo/intrinsic<br>claude plugin install intrinsic</div>
     <a href="https://github.com/cimomo/intrinsic" class="cta-github">View on GitHub &rarr;</a>
   </div>
