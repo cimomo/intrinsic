@@ -2,7 +2,9 @@
 
 *From ticker to thesis.*
 
-A Claude Code plugin for stock analysis and [DCF](https://en.wikipedia.org/wiki/Discounted_cash_flow) valuation — with built-in checks that challenge your assumptions before you commit to them.
+A Claude Code plugin for stock analysis and [DCF](https://en.wikipedia.org/wiki/Discounted_cash_flow) valuation.
+
+The problem with most DCF models is that small changes in assumptions compound into enormous swings in fair value. Assume 16% growth instead of 13% and the stock goes from "fairly valued" to "30% upside." The math is precise; the inputs are guesses. Intrinsic focuses on the inputs — grounding each assumption in data and qualitative research, then challenging them from multiple angles before you commit.
 
 > [!CAUTION]
 > **Not financial advice.** This tool is for informational and educational purposes only. Do your own due diligence.
@@ -26,7 +28,7 @@ Takes a few minutes. Produces a research document, a DCF valuation, and an inves
 
 ## How it works
 
-`/analyze` chains five steps. Each one feeds the next — research shapes assumptions, assumptions drive the valuation, the report checks everything against itself.
+`/analyze` chains five steps. Each one feeds the next — research shapes assumptions, assumptions drive the DCF, the report checks everything against itself. The through-line is assumption quality: every step either improves an assumption, tests it, or tells you what happens if it's wrong.
 
 ### 1. Fetch
 
@@ -36,7 +38,7 @@ Pulls financials from Alpha Vantage and caches them locally. Subsequent analyses
 
 Searches the web for earnings results, competitive dynamics, and management commentary. Then does a targeted contrarian search — if the initial read is bullish, it looks for bear arguments, and vice versa.
 
-The output is structured signals that feed the rest of the pipeline:
+The output is structured signals that the rest of the pipeline consumes:
 
 - **Growth outlook** (Accelerating / Stable / Decelerating) with a confidence level
 - **Moat** (Wide / Narrow / None) and direction (Widening / Stable / Narrowing)
@@ -45,15 +47,19 @@ The output is structured signals that feed the rest of the pipeline:
 - **Key risks** — the 2-3 things that could break the thesis
 - **Key debate** — the central question the market is wrestling with
 
+These signals aren't decoration — they directly influence the assumptions in step 3. An "Accelerating" growth signal with "High" confidence justifies a higher growth rate than "Stable" with "Medium" confidence.
+
 ### 3. Calibrate
 
-Before you set a single assumption, calibrate calculates what growth rate the current stock price already implies. This anchors everything: if you assume 20% growth and the market prices in 13%, you need to know why you think the market is wrong.
+This is where assumptions get pressure-tested.
 
-You review three core assumptions — how fast revenue will grow, what margins the company will reach, and how efficiently it converts capital into revenue. For each one, calibrate shows what the data suggests, what the research signals point to, and a recommended value with reasoning. You choose: recommended, current, or your own value. Your own values are tracked as **manual overrides** — specific bets that persist across future runs.
+Before you set a single number, calibrate calculates what growth rate the current stock price already implies. This anchors everything: if you assume 20% growth and the market prices in 13%, you need to know why you think the market is wrong.
+
+For each core assumption (revenue growth, operating margin, sales-to-capital ratio), calibrate shows what the data suggests, what the research signals point to, and a recommended value with reasoning. In interactive mode, you choose: recommended, current, or your own value. Your own values are tracked as **manual overrides** — specific bets that persist across future runs.
 
 After all assumptions are set, three checks run:
 
-- **Coherence check** — do the assumptions make sense together? If all three lean bullish, it says so: "this is a compounding bet."
+- **Coherence check** — do the assumptions make sense together? High growth + expanding margins + efficient capital use is a compounding bet. If all three lean bullish, it says so directly.
 - **Sensitivity analysis** — which assumption has the biggest impact on fair value? If it's also the one with Low confidence from research, it flags the combination.
 - **Pre-mortem** — "assume this stock drops 40% in 12 months. What went wrong?"
 
@@ -67,9 +73,9 @@ The recommendation is **confidence-adjusted** — the tool downgrades its own ou
 
 Synthesizes everything into an opinionated verdict:
 
-- **What You're Paying For** — your manual overrides framed as a thesis. What do you believe that the market doesn't?
-- **Alignment Check** — do your assumptions match the research? If you're bullish on growth but research says Decelerating with Low confidence, it flags the disconnect.
-- **Where You're Most Exposed** — the one assumption that would flip the recommendation if wrong, with the specific threshold.
+- **What You're Paying For** — your manual overrides framed as a specific thesis. What do you believe that the market doesn't?
+- **Alignment Check** — do your assumptions actually match the research? Bullish growth assumption + Decelerating signal with Low confidence = flagged disconnect.
+- **Where You're Most Exposed** — the one assumption that flips the recommendation if wrong, with the specific threshold.
 - **What Would Change This** — concrete triggers with timeframes, not "if growth slows."
 
 ## Why not just ask Claude to analyze a stock?
