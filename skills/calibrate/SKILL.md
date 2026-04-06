@@ -176,7 +176,10 @@ Derive these silently from the financial data. No detailed reasoning needed — 
 - **Beta:** Use beta from company overview data. Display: "Beta: X.XX (from overview)"
 - **Cost of Debt:** Calculate as interest expense / total debt from financials. Display: "Cost of debt: X.X% (interest expense / total debt)"
   - **Sanity check:** If cost of debt is more than 100bps below the risk-free rate, flag: "Cost of debt (X.X%) is well below risk-free rate (Y.Y%) — this reflects the blended coupon on legacy debt, not marginal borrowing cost. New issuances are likely at Z%. WACC may be slightly understated." This is informational — don't auto-correct, but ensure the user is aware.
-- **Tax Rate:** Calculate as effective tax rate (tax expense / pre-tax income). Display: "Tax rate: X.X% (effective rate from income statement)"
+- **Tax Rate (marginal):** Default 21% for US companies. Only change if the company is domiciled in a different tax jurisdiction. Display: "Tax rate (marginal): 21%"
+- **Effective Tax Rate:** Calculate from income statement: tax expense / pre-tax income. Set as `effective_tax_rate` in assumptions. The DCF model transitions from this rate in year 1 to the marginal rate by year 10. Terminal value always uses marginal. Display: "Effective tax rate: X.X% (from income statement) → transitions to 21% marginal"
+  - If effective rate is within 2% of marginal, skip the transition — set `effective_tax_rate` to None and note: "Effective rate (X.X%) is close to marginal (21%) — no transition needed"
+  - If effective rate is 0% or negative (NOLs, tax credits), set it and note: "Effective rate near 0% — company has tax shield from NOLs. Early-year NOPAT will be higher, transitioning to marginal by year 10"
 
 If a mechanical assumption is in `_manual_overrides`, keep the user's value and note: "Beta: keeping manual override at X.XX (data suggests Y.YY)"
 

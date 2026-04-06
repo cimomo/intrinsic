@@ -66,7 +66,7 @@ Located in `DCFAssumptions` dataclass (`dcf.py`):
 - Projection period: 10 years
 - Risk-free rate: 4.5% (10-year Treasury)
 - Market risk premium: 5%
-- Tax rate: 21%
+- Tax rate: 21% (marginal; effective_tax_rate transitions to marginal over projection period when set)
 - Cost of debt: 5%
 - Terminal ROIC: defaults to WACC (no excess returns in perpetuity; override for wide-moat companies)
 

@@ -20,7 +20,8 @@ class DCFAssumptions:
     # Margin assumptions
     operating_margin: Optional[float] = None  # Use historical if None
     target_operating_margin: Optional[float] = None  # Converge to this margin over projection period (None = no convergence)
-    tax_rate: float = 0.21  # Corporate tax rate
+    tax_rate: float = 0.21  # Marginal corporate tax rate (used for terminal value and convergence target)
+    effective_tax_rate: Optional[float] = None  # Current effective tax rate (None = use tax_rate for all years)
 
     # WACC components
     risk_free_rate: float = 0.045  # 10-year Treasury yield
@@ -141,6 +142,27 @@ class DCFModel:
         progress = year / years
         return base_margin + (target - base_margin) * progress
 
+    def _get_tax_rate_for_year(self, year: int, years: int) -> float:
+        """
+        Get tax rate for a given projection year.
+
+        If effective_tax_rate is set, linearly transitions from effective
+        to marginal (tax_rate) over the projection period. Terminal value
+        always uses marginal. If effective_tax_rate is None, returns
+        tax_rate for all years.
+
+        Args:
+            year: Projection year (1-indexed)
+            years: Total projection years
+
+        Returns:
+            Tax rate for the year
+        """
+        if self.assumptions.effective_tax_rate is None or years <= 1:
+            return self.assumptions.tax_rate
+        progress = year / years
+        return self.assumptions.effective_tax_rate + (self.assumptions.tax_rate - self.assumptions.effective_tax_rate) * progress
+
     def project_free_cash_flows(
         self,
         base_revenue: float,
@@ -199,7 +221,8 @@ class DCFModel:
             revenue *= (1 + growth_rate)
 
             # Calculate NOPAT (Net Operating Profit After Tax)
-            nopat = revenue * year_margin * (1 - self.assumptions.tax_rate)
+            year_tax = self._get_tax_rate_for_year(year, years)
+            nopat = revenue * year_margin * (1 - year_tax)
 
             # Calculate reinvestment needed to support growth
             reinvestment = revenue_growth / sales_to_capital if sales_to_capital > 0 else 0
@@ -565,7 +588,10 @@ class DCFModel:
             if self.assumptions.target_operating_margin is not None:
                 summary += f"  Target Op. Margin:     {self.assumptions.target_operating_margin*100:.1f}% (converges linearly)\n"
 
-        summary += f"  Tax Rate:              {self.assumptions.tax_rate*100:.0f}%\n"
+        if self.assumptions.effective_tax_rate is not None:
+            summary += f"  Effective Tax Rate:    {self.assumptions.effective_tax_rate*100:.1f}% (Year 1) → {self.assumptions.tax_rate*100:.0f}% (marginal, by Year {self.assumptions.projection_years})\n"
+        else:
+            summary += f"  Tax Rate:              {self.assumptions.tax_rate*100:.0f}%\n"
         summary += f"  WACC:                  {r['wacc']*100:.2f}%\n"
 
         if 'sales_to_capital' in r:
@@ -614,7 +640,8 @@ class DCFModel:
                 # Calculate metrics
                 revenue_growth_dollars = revenue * growth_rate
                 revenue *= (1 + growth_rate)
-                nopat = revenue * year_margin * (1 - self.assumptions.tax_rate)
+                year_tax = self._get_tax_rate_for_year(year, self.assumptions.projection_years)
+                nopat = revenue * year_margin * (1 - year_tax)
                 reinvestment = revenue_growth_dollars / sales_to_capital if sales_to_capital > 0 else 0
                 fcf = r['fcf_projections'][year - 1]
 
@@ -827,7 +854,8 @@ class DCFModel:
 
             revenue_growth_dollars = revenue * growth_rate
             revenue *= (1 + growth_rate)
-            nopat = revenue * operating_margin * (1 - self.assumptions.tax_rate)
+            year_tax = self._get_tax_rate_for_year(year, years)
+            nopat = revenue * operating_margin * (1 - year_tax)
             reinvestment = revenue_growth_dollars / sales_to_capital if sales_to_capital > 0 else 0
             fcf_projections.append(nopat - reinvestment)
 

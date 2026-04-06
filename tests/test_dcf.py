@@ -58,6 +58,10 @@ class TestDCFAssumptions:
         a = DCFAssumptions()
         assert a.target_operating_margin is None
 
+    def test_effective_tax_rate_default_none(self):
+        a = DCFAssumptions()
+        assert a.effective_tax_rate is None
+
 
 # --- WACC ---
 
@@ -183,6 +187,51 @@ class TestProjectFCF:
         )
         # 100B * 1.10^5 = 161.05B
         assert final_rev == pytest.approx(100e9 * 1.10**5)
+
+    def test_tax_rate_transition(self):
+        """Effective tax rate transitions to marginal over projection period"""
+        assumptions = DCFAssumptions(
+            revenue_growth_rate=0.10, tax_rate=0.21,
+            effective_tax_rate=0.05, projection_years=10,
+        )
+        model = DCFModel(assumptions)
+        fcfs_transition, _, _ = model.project_free_cash_flows(
+            base_revenue=100e9, operating_margin=0.30,
+            sales_to_capital=2.0, years=10
+        )
+        # Without transition (flat 21%)
+        assumptions_flat = DCFAssumptions(
+            revenue_growth_rate=0.10, tax_rate=0.21,
+            projection_years=10,
+        )
+        model_flat = DCFModel(assumptions_flat)
+        fcfs_flat, _, _ = model_flat.project_free_cash_flows(
+            base_revenue=100e9, operating_margin=0.30,
+            sales_to_capital=2.0, years=10
+        )
+        # Early years: lower tax → higher NOPAT → higher FCF
+        assert fcfs_transition[0] > fcfs_flat[0]
+        # Year 10: tax rate converged to marginal, FCFs should be equal
+        assert fcfs_transition[-1] == pytest.approx(fcfs_flat[-1])
+
+    def test_no_transition_when_effective_is_none(self):
+        """When effective_tax_rate is None, all years use marginal rate"""
+        assumptions = DCFAssumptions(tax_rate=0.21, projection_years=5)
+        model = DCFModel(assumptions)
+        # All years should use 21%
+        for year in range(1, 6):
+            assert model._get_tax_rate_for_year(year, 5) == 0.21
+
+    def test_tax_transition_year_by_year(self):
+        """Verify linear interpolation of tax rate"""
+        assumptions = DCFAssumptions(tax_rate=0.21, effective_tax_rate=0.01)
+        model = DCFModel(assumptions)
+        # Year 1/10 = 10% progress: 0.01 + 0.20 * 0.1 = 0.03
+        assert model._get_tax_rate_for_year(1, 10) == pytest.approx(0.03)
+        # Year 5/10 = 50% progress: 0.01 + 0.20 * 0.5 = 0.11
+        assert model._get_tax_rate_for_year(5, 10) == pytest.approx(0.11)
+        # Year 10/10 = 100% progress: 0.01 + 0.20 * 1.0 = 0.21
+        assert model._get_tax_rate_for_year(10, 10) == pytest.approx(0.21)
 
 
 # --- Terminal Value ---

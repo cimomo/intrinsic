@@ -81,6 +81,7 @@ class StockManager:
                 operating_margin=data.get('operating_margin'),
                 target_operating_margin=data.get('target_operating_margin'),
                 tax_rate=data.get('tax_rate', 0.21),
+                effective_tax_rate=data.get('effective_tax_rate'),
                 risk_free_rate=data.get('risk_free_rate', 0.045),
                 market_risk_premium=data.get('market_risk_premium', 0.05),
                 beta=data.get('beta'),
@@ -128,6 +129,7 @@ class StockManager:
             'operating_margin': assumptions.operating_margin,
             'target_operating_margin': assumptions.target_operating_margin,
             'tax_rate': assumptions.tax_rate,
+            'effective_tax_rate': assumptions.effective_tax_rate,
             'risk_free_rate': assumptions.risk_free_rate,
             'market_risk_premium': assumptions.market_risk_premium,
             'beta': assumptions.beta,
@@ -432,7 +434,9 @@ class StockManager:
         summary += f"  Projection Years:            {assumptions.projection_years}\n"
         summary += f"  Risk-Free Rate:              {assumptions.risk_free_rate*100:.1f}%\n"
         summary += f"  Market Risk Premium:         {assumptions.market_risk_premium*100:.1f}%\n"
-        summary += f"  Tax Rate:                    {assumptions.tax_rate*100:.0f}%\n"
+        summary += f"  Tax Rate (marginal):         {assumptions.tax_rate*100:.0f}%\n"
+        if assumptions.effective_tax_rate is not None:
+            summary += f"  Effective Tax Rate:          {assumptions.effective_tax_rate*100:.1f}% (transitions to marginal)\n"
         summary += f"  Cost of Debt:                {assumptions.cost_of_debt*100:.1f}%\n"
 
         if assumptions.operating_margin is not None:
