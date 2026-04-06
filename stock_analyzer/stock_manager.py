@@ -88,6 +88,7 @@ class StockManager:
                 cost_of_debt=data.get('cost_of_debt', 0.05),
                 projection_years=data.get('projection_years', 10),
                 sales_to_capital_ratio=data.get('sales_to_capital_ratio'),
+                terminal_roic=data.get('terminal_roic'),
             )
 
             return assumptions
@@ -134,6 +135,7 @@ class StockManager:
             'cost_of_debt': assumptions.cost_of_debt,
             'projection_years': assumptions.projection_years,
             'sales_to_capital_ratio': assumptions.sales_to_capital_ratio,
+            'terminal_roic': assumptions.terminal_roic,
         }
 
         if manual_overrides:
@@ -433,10 +435,18 @@ class StockManager:
         summary += f"  Tax Rate:                    {assumptions.tax_rate*100:.0f}%\n"
         summary += f"  Cost of Debt:                {assumptions.cost_of_debt*100:.1f}%\n"
 
-        if assumptions.operating_margin:
+        if assumptions.operating_margin is not None:
             summary += f"  Operating Margin:            {assumptions.operating_margin*100:.1f}%\n"
 
-        if assumptions.sales_to_capital_ratio:
+        if assumptions.target_operating_margin is not None:
+            summary += f"  Target Op. Margin:           {assumptions.target_operating_margin*100:.1f}%\n"
+
+        if assumptions.sales_to_capital_ratio is not None:
             summary += f"  Sales-to-Capital:            {assumptions.sales_to_capital_ratio:.2f}x\n"
+
+        if assumptions.terminal_roic is not None:
+            summary += f"  Terminal ROIC:               {assumptions.terminal_roic*100:.1f}% (explicit)\n"
+        else:
+            summary += f"  Terminal ROIC:               = WACC (default)\n"
 
         return summary

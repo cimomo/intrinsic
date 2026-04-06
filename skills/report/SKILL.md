@@ -87,6 +87,7 @@ Write the report using the output template.
 **## Alignment Check**
 - **Signal vs assumption alignment:** Flag disconnects between research signals and DCF assumptions. If aligned, brief note. If mismatched, explain the tension.
 - **ROIC vs WACC:** If the valuation metrics show ROIC below WACC, flag that growth assumptions may be working against the valuation — growth destroys value when returns fall below the cost of capital.
+- **Terminal ROIC vs moat:** If terminal ROIC is set above WACC (check assumptions.json `terminal_roic`), verify the research moat assessment supports competitive advantage persistence. A terminal ROIC of 20% with a Narrow/Narrowing moat is a disconnect worth flagging.
 - **Key Risks vs valuation structure:** Does the valuation's structure make it vulnerable to the risks research identified?
 - **Key Debate vs assumptions:** Is the user betting on the bull or bear side of the market's central question?
 

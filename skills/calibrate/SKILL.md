@@ -21,6 +21,7 @@ Assumptions are split into three tiers based on how much attention they need:
 - Revenue Growth Rate (Years 1-5)
 - Operating Margin / Target Operating Margin
 - Sales-to-Capital Ratio
+- Terminal ROIC (how much competitive advantage persists in perpetuity)
 
 **Mechanical assumptions** — company-specific but derivable from financial data, no judgment needed.
 - Beta (from company overview)
@@ -117,6 +118,57 @@ Go through these in order:
 - Present the full historical table to the user before asking for a value
 - Consider: is there a regime change (e.g., capital-light → capital-heavy)? Is the trend improving or deteriorating?
 
+**d. Terminal ROIC (Competitive Advantage Persistence)**
+
+Terminal ROIC determines how much the company must reinvest to sustain terminal growth. It is the single most impactful assumption on terminal value — the difference between ROIC = WACC and ROIC = 20% can swing fair value by 20-40%.
+
+**Anchors — always show these before recommending:**
+- **Current ROIC** from `calculate_dcf_inputs()` (returned as `dcf_inputs['roic']`)
+- **WACC** (the floor — no competitive advantage persists)
+- **Implied ROIC from model assumptions:** `operating_margin × sales_to_capital × (1 - tax_rate)`. This is what the DCF's own year-10 numbers imply, and represents the ROIC if current operating efficiency continues.
+- **Constraint:** Terminal ROIC must be >= terminal growth rate (otherwise reinvestment > 100%)
+
+**Framework for setting terminal ROIC — use research moat signals:**
+
+The core question: *How much of today's excess returns (ROIC above WACC) will persist in perpetuity?*
+
+| Research signal | Terminal ROIC | Reasoning |
+|----------------|---------------|-----------|
+| Moat: None | = WACC | Competition fully erodes excess returns |
+| Moat: Narrow, Direction: Narrowing | = WACC | Advantages eroding, converge to no-moat |
+| Moat: Narrow, Direction: Stable | Midpoint of WACC and current ROIC | Some advantages persist but partially erode |
+| Moat: Wide, Direction: Narrowing | Midpoint of WACC and current ROIC | Strong today but declining |
+| Moat: Wide, Direction: Stable | 75% of the way from WACC to current ROIC | Strong and durable |
+| Moat: Wide, Direction: Widening | Current ROIC (or implied ROIC) | Advantages strengthening |
+
+This table is a starting point. **Go deeper — reason about the specific source of advantage:**
+- **Network effects** (MSFT ecosystem, NVDA CUDA, platform businesses) → very durable, among the strongest moats. ROIC decay is slow.
+- **Switching costs** (enterprise software, embedded systems) → durable, but can erode with generational technology shifts.
+- **Intangible assets** (brand, patents, regulatory licenses) → patents expire, brands fade, but regulatory moats persist. Duration matters.
+- **Cost advantages / scale** (manufacturing, distribution) → can be disrupted by new technology or geographic shifts.
+- **Data advantages** (proprietary datasets, feedback loops) → durable if the data compounds; weak if the data becomes commoditized.
+
+For each source of advantage identified in the research, ask: *What would have to happen for this advantage to disappear?* If the answer is "a generational technology shift" or "a fundamental change in how the industry works," the advantage is likely to persist and terminal ROIC should reflect that.
+
+**How to present the recommendation:**
+```
+Terminal ROIC:
+  WACC (floor):           9.9%    ← no excess returns, competition wins
+  Current ROIC:          29.1%    ← today's returns
+  Implied ROIC (model):  25.3%    ← what your margin + S/C assumptions imply
+  Recommended:           22.0%    ← 75% toward current ROIC
+    Research: Wide moat (Stable) — Azure/M365 ecosystem creates deep switching costs
+    and network effects. Enterprise lock-in is multi-year. No plausible path to full
+    moat erosion within 10-year horizon.
+    Impact: Terminal ROIC of 22% vs WACC-default changes fair value by +$64
+```
+
+**Guard:** In all cases, cap terminal ROIC at 2× WACC. Even the strongest moats should not imply returns exceeding double the cost of capital in perpetuity. If the table or current ROIC suggests a value above 2× WACC, use 2× WACC and note the cap.
+
+**Interactive mode:** Present the anchors, the table-based recommendation, and the specific reasoning. Ask: "recommended (22%), WACC default (9.9%), or custom?"
+
+**Auto mode:** Apply the table-based recommendation using research moat signals. If no research is available, keep default (= WACC). If the recommended value is a manual override, keep the override and show what auto would recommend.
+
 ### 4. Mechanical Assumptions (auto-derive from data)
 
 Derive these silently from the financial data. No detailed reasoning needed — just show a one-line summary per field.
@@ -177,13 +229,14 @@ If no inconsistencies are found, display: "Coherence check passed — assumption
 
 ### 7. Sensitivity Awareness — What Matters Most?
 
-Run a quick sensitivity check on the 3 core assumptions. For each, vary by ±20% from the current value and calculate the resulting fair value using `DCFModel`. Display:
+Run a quick sensitivity check on the 4 core assumptions. For each, vary by ±20% from the current value and calculate the resulting fair value using `DCFModel`. For terminal ROIC, also show the WACC-default value as the downside case. Display:
 
 ```
 Sensitivity (±20% change in assumption → fair value impact):
   Revenue growth:    $XXX to $XXX  (±$XX, ±XX%)  ← highest impact
   Operating margin:  $XXX to $XXX  (±$XX, ±XX%)
   Sales-to-capital:  $XXX to $XXX  (±$XX, ±XX%)
+  Terminal ROIC:     $XXX to $XXX  (±$XX, ±XX%)  [WACC-default: $XXX]
 ```
 
 Flag the highest-impact assumption: "Fair value is most sensitive to revenue growth — a ±20% change swings fair value by ±$XX. This assumption deserves the most scrutiny."

@@ -99,7 +99,7 @@ class TestWACC:
 class TestProjectFCF:
     def test_returns_correct_length(self, custom_assumptions):
         model = DCFModel(custom_assumptions)
-        fcfs, margins = model.project_free_cash_flows(
+        fcfs, margins, final_rev = model.project_free_cash_flows(
             base_revenue=100e9, operating_margin=0.30,
             sales_to_capital=2.0, years=10
         )
@@ -108,7 +108,7 @@ class TestProjectFCF:
 
     def test_fcf_positive_for_profitable_company(self, custom_assumptions):
         model = DCFModel(custom_assumptions)
-        fcfs, _ = model.project_free_cash_flows(
+        fcfs, _, _ = model.project_free_cash_flows(
             base_revenue=100e9, operating_margin=0.30,
             sales_to_capital=2.0, years=10
         )
@@ -120,7 +120,7 @@ class TestProjectFCF:
             revenue_growth_rate=0.20, terminal_growth_rate=0.03, projection_years=10
         )
         model = DCFModel(assumptions)
-        fcfs, _ = model.project_free_cash_flows(
+        fcfs, _, _ = model.project_free_cash_flows(
             base_revenue=100e9, operating_margin=0.25,
             sales_to_capital=2.0, years=10
         )
@@ -131,7 +131,7 @@ class TestProjectFCF:
 
     def test_no_margin_convergence_by_default(self, custom_assumptions):
         model = DCFModel(custom_assumptions)
-        _, margins = model.project_free_cash_flows(
+        _, margins, _ = model.project_free_cash_flows(
             base_revenue=100e9, operating_margin=0.25,
             sales_to_capital=2.0, years=10
         )
@@ -140,7 +140,7 @@ class TestProjectFCF:
     def test_margin_convergence(self):
         assumptions = DCFAssumptions(target_operating_margin=0.40, projection_years=10)
         model = DCFModel(assumptions)
-        _, margins = model.project_free_cash_flows(
+        _, margins, _ = model.project_free_cash_flows(
             base_revenue=100e9, operating_margin=0.20,
             sales_to_capital=2.0, years=10
         )
@@ -156,7 +156,7 @@ class TestProjectFCF:
         """Margin should converge down if target < current"""
         assumptions = DCFAssumptions(target_operating_margin=0.15, projection_years=10)
         model = DCFModel(assumptions)
-        _, margins = model.project_free_cash_flows(
+        _, margins, _ = model.project_free_cash_flows(
             base_revenue=100e9, operating_margin=0.30,
             sales_to_capital=2.0, years=10
         )
@@ -166,12 +166,23 @@ class TestProjectFCF:
     def test_zero_sales_to_capital(self):
         """Zero sales-to-capital should mean zero reinvestment"""
         model = DCFModel(DCFAssumptions(projection_years=3))
-        fcfs, _ = model.project_free_cash_flows(
+        fcfs, _, _ = model.project_free_cash_flows(
             base_revenue=100e9, operating_margin=0.20,
             sales_to_capital=0, years=3
         )
         # FCF = NOPAT (no reinvestment subtracted)
         assert all(fcf > 0 for fcf in fcfs)
+
+    def test_returns_final_revenue(self):
+        """Final revenue reflects cumulative growth"""
+        assumptions = DCFAssumptions(revenue_growth_rate=0.10, projection_years=5)
+        model = DCFModel(assumptions)
+        _, _, final_rev = model.project_free_cash_flows(
+            base_revenue=100e9, operating_margin=0.30,
+            sales_to_capital=2.0, years=5
+        )
+        # 100B * 1.10^5 = 161.05B
+        assert final_rev == pytest.approx(100e9 * 1.10**5)
 
 
 # --- Terminal Value ---
@@ -179,27 +190,119 @@ class TestProjectFCF:
 class TestTerminalValue:
     def test_positive_terminal_value(self, custom_assumptions):
         model = DCFModel(custom_assumptions)
-        tv = model.calculate_terminal_value(final_year_fcf=50e9, wacc=0.10)
+        tv, details = model.calculate_terminal_value(
+            final_year_revenue=500e9, final_year_margin=0.30, wacc=0.10
+        )
         assert tv > 0
+        assert details['terminal_nopat'] > 0
+        assert details['terminal_fcf'] > 0
 
     def test_wacc_equals_terminal_growth_raises(self):
         assumptions = DCFAssumptions(terminal_growth_rate=0.05)
         model = DCFModel(assumptions)
         with pytest.raises(ValueError, match="WACC.*must be greater"):
-            model.calculate_terminal_value(final_year_fcf=50e9, wacc=0.05)
+            model.calculate_terminal_value(
+                final_year_revenue=500e9, final_year_margin=0.30, wacc=0.05
+            )
 
     def test_wacc_below_terminal_growth_raises(self):
         assumptions = DCFAssumptions(terminal_growth_rate=0.05)
         model = DCFModel(assumptions)
         with pytest.raises(ValueError, match="WACC.*must be greater"):
-            model.calculate_terminal_value(final_year_fcf=50e9, wacc=0.03)
+            model.calculate_terminal_value(
+                final_year_revenue=500e9, final_year_margin=0.30, wacc=0.03
+            )
 
     def test_higher_growth_increases_terminal_value(self):
         model_low = DCFModel(DCFAssumptions(terminal_growth_rate=0.02))
         model_high = DCFModel(DCFAssumptions(terminal_growth_rate=0.03))
-        tv_low = model_low.calculate_terminal_value(final_year_fcf=50e9, wacc=0.10)
-        tv_high = model_high.calculate_terminal_value(final_year_fcf=50e9, wacc=0.10)
+        tv_low, _ = model_low.calculate_terminal_value(
+            final_year_revenue=500e9, final_year_margin=0.30, wacc=0.10
+        )
+        tv_high, _ = model_high.calculate_terminal_value(
+            final_year_revenue=500e9, final_year_margin=0.30, wacc=0.10
+        )
         assert tv_high > tv_low
+
+    def test_terminal_roic_defaults_to_wacc(self):
+        """When terminal_roic is None, it defaults to WACC"""
+        assumptions = DCFAssumptions(terminal_growth_rate=0.03)
+        model = DCFModel(assumptions)
+        _, details = model.calculate_terminal_value(
+            final_year_revenue=500e9, final_year_margin=0.30, wacc=0.10
+        )
+        assert details['terminal_roic'] == 0.10
+        # Reinvestment rate = g/WACC = 3%/10% = 30%
+        assert details['terminal_reinvestment_rate'] == pytest.approx(0.30)
+
+    def test_explicit_terminal_roic(self):
+        """Explicit terminal_roic overrides WACC default"""
+        assumptions = DCFAssumptions(terminal_growth_rate=0.03, terminal_roic=0.20)
+        model = DCFModel(assumptions)
+        _, details = model.calculate_terminal_value(
+            final_year_revenue=500e9, final_year_margin=0.30, wacc=0.10
+        )
+        assert details['terminal_roic'] == 0.20
+        # Reinvestment rate = g/ROIC = 3%/20% = 15%
+        assert details['terminal_reinvestment_rate'] == pytest.approx(0.15)
+
+    def test_higher_terminal_roic_increases_terminal_value(self):
+        """Higher ROIC means less reinvestment, more FCF, higher TV"""
+        model_low = DCFModel(DCFAssumptions(terminal_growth_rate=0.03, terminal_roic=0.08))
+        model_high = DCFModel(DCFAssumptions(terminal_growth_rate=0.03, terminal_roic=0.20))
+        tv_low, _ = model_low.calculate_terminal_value(
+            final_year_revenue=500e9, final_year_margin=0.30, wacc=0.10
+        )
+        tv_high, _ = model_high.calculate_terminal_value(
+            final_year_revenue=500e9, final_year_margin=0.30, wacc=0.10
+        )
+        assert tv_high > tv_low
+
+    def test_terminal_fcf_formula(self):
+        """Terminal FCF = NOPAT * (1 - g/ROIC)"""
+        assumptions = DCFAssumptions(
+            terminal_growth_rate=0.045, terminal_roic=0.15, tax_rate=0.21
+        )
+        model = DCFModel(assumptions)
+        _, details = model.calculate_terminal_value(
+            final_year_revenue=100e9, final_year_margin=0.40, wacc=0.10
+        )
+        # Year 11 revenue = 100B * 1.045 = 104.5B
+        # NOPAT = 104.5B * 0.40 * 0.79 = 33.022B
+        # Reinvestment rate = 4.5%/15% = 30%
+        # FCF = 33.022B * 0.70 = 23.1154B
+        assert details['terminal_nopat'] == pytest.approx(104.5e9 * 0.40 * 0.79)
+        assert details['terminal_reinvestment_rate'] == pytest.approx(0.30)
+        assert details['terminal_fcf'] == pytest.approx(details['terminal_nopat'] * 0.70)
+
+    def test_terminal_roic_below_growth_raises(self):
+        """Terminal ROIC below terminal growth rate is invalid (reinvestment > 100%)"""
+        assumptions = DCFAssumptions(terminal_growth_rate=0.045, terminal_roic=0.03)
+        model = DCFModel(assumptions)
+        with pytest.raises(ValueError, match="Terminal ROIC.*must be positive"):
+            model.calculate_terminal_value(
+                final_year_revenue=500e9, final_year_margin=0.30, wacc=0.10
+            )
+
+    def test_terminal_roic_zero_raises(self):
+        """Zero terminal ROIC is invalid"""
+        assumptions = DCFAssumptions(terminal_growth_rate=0.03, terminal_roic=0.0)
+        model = DCFModel(assumptions)
+        with pytest.raises(ValueError, match="Terminal ROIC.*must be positive"):
+            model.calculate_terminal_value(
+                final_year_revenue=500e9, final_year_margin=0.30, wacc=0.10
+            )
+
+    def test_terminal_roic_equals_growth_rate(self):
+        """When ROIC = g, reinvestment = 100%, terminal FCF = 0, terminal value = 0"""
+        assumptions = DCFAssumptions(terminal_growth_rate=0.03, terminal_roic=0.03)
+        model = DCFModel(assumptions)
+        tv, details = model.calculate_terminal_value(
+            final_year_revenue=500e9, final_year_margin=0.30, wacc=0.10
+        )
+        assert details['terminal_reinvestment_rate'] == pytest.approx(1.0)
+        assert details['terminal_fcf'] == pytest.approx(0, abs=1)
+        assert tv == pytest.approx(0, abs=1)
 
 
 # --- Present Value ---
@@ -280,6 +383,44 @@ class TestCalculateFairValue:
         cash = sample_financial_data['cash']
         expected = sample_financial_data['revenue'] / (equity + debt - cash)
         assert r['sales_to_capital'] == pytest.approx(expected)
+
+    def test_explicit_terminal_roic(self, sample_financial_data):
+        """Explicit terminal_roic flows through to results and increases fair value"""
+        model_default = DCFModel()
+        model_moat = DCFModel(DCFAssumptions(terminal_roic=0.20))
+        r_default = model_default.calculate_fair_value(sample_financial_data, 10e9, 100.0)
+        r_moat = model_moat.calculate_fair_value(sample_financial_data, 10e9, 100.0)
+        # Results include terminal details
+        assert 'terminal_roic' in r_default
+        assert 'terminal_reinvestment_rate' in r_default
+        # Default uses WACC, explicit uses 0.20
+        assert r_default['terminal_roic'] == pytest.approx(r_default['wacc'])
+        assert r_moat['terminal_roic'] == 0.20
+        # Higher ROIC → less reinvestment → higher terminal FCF → higher fair value
+        assert r_moat['fair_value'] > r_default['fair_value']
+
+    def test_recalc_consistent_with_main(self, sample_financial_data):
+        """_recalc_fair_value produces same result as calculate_fair_value for base case"""
+        assumptions = DCFAssumptions(
+            revenue_growth_rate=0.10,
+            operating_margin=0.30,
+            sales_to_capital_ratio=2.0,
+            terminal_roic=0.18,
+        )
+        model = DCFModel(assumptions)
+        r = model.calculate_fair_value(sample_financial_data, 10e9, 100.0, verbose=True)
+        # _recalc_fair_value with same growth and margin should match
+        target_margin = assumptions.target_operating_margin or r['operating_margin']
+        recalc_fv = model._recalc_fair_value(
+            revenue_growth=assumptions.revenue_growth_rate,
+            operating_margin=target_margin,
+            wacc=r['wacc'],
+            sales_to_capital=r['sales_to_capital'],
+            base_revenue=r['base_revenue'],
+            shares=r['shares_outstanding'],
+            net_debt=r['net_debt'],
+        )
+        assert recalc_fv == pytest.approx(r['fair_value'], rel=1e-6)
 
 
 # --- Validation ---

@@ -37,6 +37,10 @@ class DCFAssumptions:
     # Capital efficiency (replaces capex_percent and nwc_percent)
     sales_to_capital_ratio: Optional[float] = None  # Revenue generated per dollar of capital invested
 
+    # Terminal ROIC — determines reinvestment needed to sustain terminal growth
+    # None = defaults to WACC (no excess returns in perpetuity, per Damodaran)
+    terminal_roic: Optional[float] = None
+
     def __post_init__(self):
         """Set terminal growth rate to risk-free rate if not explicitly provided"""
         if self.terminal_growth_rate is None:
@@ -143,7 +147,7 @@ class DCFModel:
         operating_margin: float,
         sales_to_capital: float,
         years: int
-    ) -> Tuple[List[float], List[float]]:
+    ) -> Tuple[List[float], List[float], float]:
         """
         Project future free cash flows using sales-to-capital approach
 
@@ -167,7 +171,7 @@ class DCFModel:
             years: Number of years to project (typically 10)
 
         Returns:
-            Tuple of (projected FCF list, margin per year list)
+            Tuple of (projected FCF list, margin per year list, final year revenue)
         """
         fcf_projections = []
         margin_projections = []
@@ -204,42 +208,77 @@ class DCFModel:
             fcf = nopat - reinvestment
             fcf_projections.append(fcf)
 
-        return fcf_projections, margin_projections
+        return fcf_projections, margin_projections, revenue
 
     def calculate_terminal_value(
         self,
-        final_year_fcf: float,
+        final_year_revenue: float,
+        final_year_margin: float,
         wacc: float
-    ) -> float:
+    ) -> Tuple[float, Dict]:
         """
-        Calculate terminal value using Gordon Growth Model
+        Calculate terminal value using Damodaran's reinvestment-based approach.
 
-        TV = FCF(n+1) / (WACC - g)
-        Where FCF(n+1) = FCF(n) * (1 + g)
+        Terminal reinvestment is derived from g/ROIC rather than naively growing
+        the final year's FCF. This ensures the terminal period's reinvestment
+        is consistent with sustainable growth at a given return on capital.
+
+        Terminal ROIC defaults to WACC (no excess returns in perpetuity).
+        Override via assumptions.terminal_roic for wide-moat companies.
 
         Args:
-            final_year_fcf: Free cash flow in final projection year
+            final_year_revenue: Revenue in the final projection year
+            final_year_margin: Operating margin in the final projection year
             wacc: Weighted average cost of capital
 
         Returns:
-            Terminal value
+            Tuple of (terminal_value, details_dict) where details_dict contains
+            terminal_nopat, terminal_fcf, terminal_roic, terminal_reinvestment_rate
         """
+        g = self.assumptions.terminal_growth_rate
+        tax = self.assumptions.tax_rate
+
         # Guard: WACC must exceed terminal growth rate for Gordon Growth Model
-        spread = wacc - self.assumptions.terminal_growth_rate
+        spread = wacc - g
         if spread <= 0:
             raise ValueError(
                 f"WACC ({wacc*100:.2f}%) must be greater than terminal growth rate "
-                f"({self.assumptions.terminal_growth_rate*100:.2f}%). "
+                f"({g*100:.2f}%). "
                 f"Either increase WACC (higher beta, more debt) or lower the terminal growth rate."
             )
 
-        # Project one more year of FCF at terminal growth rate
-        fcf_year_n_plus_1 = final_year_fcf * (1 + self.assumptions.terminal_growth_rate)
+        # Terminal ROIC: use explicit assumption, or default to WACC
+        terminal_roic = self.assumptions.terminal_roic if self.assumptions.terminal_roic is not None else wacc
+
+        # Guard: terminal ROIC must exceed terminal growth rate
+        # Otherwise reinvestment rate > 100% and terminal FCF is negative in perpetuity
+        if terminal_roic <= 0 or terminal_roic < g:
+            raise ValueError(
+                f"Terminal ROIC ({terminal_roic*100:.2f}%) must be positive and >= terminal growth rate "
+                f"({g*100:.2f}%). A lower ROIC implies reinvestment exceeding 100% of NOPAT."
+            )
+
+        # Year n+1 revenue and NOPAT
+        terminal_revenue = final_year_revenue * (1 + g)
+        terminal_nopat = terminal_revenue * final_year_margin * (1 - tax)
+
+        # Terminal reinvestment rate = g / ROIC
+        terminal_reinvestment_rate = g / terminal_roic
+
+        # Terminal FCF = NOPAT * (1 - g/ROIC)
+        terminal_fcf = terminal_nopat * (1 - terminal_reinvestment_rate)
 
         # Gordon Growth Model
-        terminal_value = fcf_year_n_plus_1 / spread
+        terminal_value = terminal_fcf / spread
 
-        return terminal_value
+        details = {
+            'terminal_nopat': terminal_nopat,
+            'terminal_fcf': terminal_fcf,
+            'terminal_roic': terminal_roic,
+            'terminal_reinvestment_rate': terminal_reinvestment_rate,
+        }
+
+        return terminal_value, details
 
     def calculate_present_value(
         self,
@@ -350,16 +389,18 @@ class DCFModel:
         wacc = self.calculate_wacc(beta, debt_to_equity, market_cap, total_debt)
 
         # Project free cash flows
-        fcf_projections, margin_projections = self.project_free_cash_flows(
+        fcf_projections, margin_projections, final_year_revenue = self.project_free_cash_flows(
             base_revenue=revenue,
             operating_margin=operating_margin,
             sales_to_capital=sales_to_capital,
             years=self.assumptions.projection_years
         )
 
-        # Calculate terminal value
-        terminal_value = self.calculate_terminal_value(
-            final_year_fcf=fcf_projections[-1],
+        # Calculate terminal value using Damodaran's reinvestment approach
+        final_year_margin = margin_projections[-1] if margin_projections else operating_margin
+        terminal_value, terminal_details = self.calculate_terminal_value(
+            final_year_revenue=final_year_revenue,
+            final_year_margin=final_year_margin,
             wacc=wacc
         )
 
@@ -399,6 +440,7 @@ class DCFModel:
             'pv_fcf': pv_fcf,
             'sales_to_capital': sales_to_capital,
         }
+        self.results.update(terminal_details)
 
         if verbose:
             self.results.update({
@@ -411,6 +453,7 @@ class DCFModel:
                 'shares_outstanding': shares_outstanding,
                 'base_revenue': revenue,
                 'net_debt': net_debt,
+                'final_year_revenue': final_year_revenue,
             })
 
         return self.results
@@ -590,24 +633,33 @@ class DCFModel:
             summary += "\n"
 
         # Terminal value calculation
-        if 'fcf_projections' in r and len(r['fcf_projections']) > 0:
+        if 'terminal_nopat' in r:
             summary += "=" * 100 + "\n"
             summary += "TERMINAL VALUE CALCULATION\n"
             summary += "=" * 100 + "\n\n"
 
-            terminal_fcf = r['fcf_projections'][-1]
-            terminal_fcf_year_11 = terminal_fcf * (1 + self.assumptions.terminal_growth_rate)
+            g = self.assumptions.terminal_growth_rate
+            terminal_roic = r['terminal_roic']
+            terminal_reinv = r['terminal_reinvestment_rate']
+            terminal_nopat = r['terminal_nopat']
+            terminal_fcf = r['terminal_fcf']
             terminal_value = r['terminal_value']
             pv_factor_terminal = 1 / ((1 + r['wacc']) ** self.assumptions.projection_years)
 
-            summary += f"  Year {self.assumptions.projection_years} FCF:              ${terminal_fcf/1e9:,.2f}B\n"
-            summary += f"  Terminal Growth Rate:     {self.assumptions.terminal_growth_rate*100:.1f}%\n"
-            summary += f"  Year {self.assumptions.projection_years + 1} FCF:              ${terminal_fcf_year_11/1e9:,.2f}B\n"
-            summary += f"  WACC:                     {r['wacc']*100:.2f}%\n"
-            summary += f"  Gordon Growth Formula:    FCF({self.assumptions.projection_years + 1}) / (WACC - g)\n"
-            summary += f"  Terminal Value:           ${terminal_value/1e9:,.2f}B\n"
-            summary += f"  PV Factor (Year {self.assumptions.projection_years}):      {pv_factor_terminal:.4f}\n"
-            summary += f"  PV of Terminal Value:     ${r['pv_terminal_value']/1e9:,.2f}B\n"
+            summary += f"  Terminal Growth Rate:       {g*100:.1f}%\n"
+            summary += f"  Terminal ROIC:              {terminal_roic*100:.2f}%"
+            if self.assumptions.terminal_roic is not None:
+                summary += " (explicit)\n"
+            else:
+                summary += " (= WACC, no excess returns)\n"
+            summary += f"  Reinvestment Rate (g/ROIC): {terminal_reinv*100:.1f}%\n"
+            summary += f"  Year {self.assumptions.projection_years + 1} NOPAT:              ${terminal_nopat/1e9:,.2f}B\n"
+            summary += f"  Year {self.assumptions.projection_years + 1} FCF:                ${terminal_fcf/1e9:,.2f}B  (NOPAT x {(1-terminal_reinv)*100:.1f}%)\n"
+            summary += f"  WACC:                       {r['wacc']*100:.2f}%\n"
+            summary += f"  Gordon Growth Formula:      FCF / (WACC - g)\n"
+            summary += f"  Terminal Value:             ${terminal_value/1e9:,.2f}B\n"
+            summary += f"  PV Factor (Year {self.assumptions.projection_years}):        {pv_factor_terminal:.4f}\n"
+            summary += f"  PV of Terminal Value:       ${r['pv_terminal_value']/1e9:,.2f}B\n"
             summary += "\n"
 
         # Valuation summary
@@ -788,14 +840,21 @@ class DCFModel:
             for year, fcf in enumerate(fcf_projections, start=1)
         )
 
-        # Terminal value
-        final_fcf = fcf_projections[-1]
-        spread = wacc - self.assumptions.terminal_growth_rate
+        # Terminal value using reinvestment-based approach
+        g = self.assumptions.terminal_growth_rate
+        spread = wacc - g
         if spread <= 0:
             return None
 
-        fcf_next = final_fcf * (1 + self.assumptions.terminal_growth_rate)
-        pv_terminal = (fcf_next / spread) / ((1 + wacc) ** len(fcf_projections))
+        terminal_roic = self.assumptions.terminal_roic if self.assumptions.terminal_roic is not None else wacc
+        if terminal_roic <= 0 or terminal_roic < g:
+            return None
+
+        terminal_revenue = revenue * (1 + g)
+        terminal_nopat = terminal_revenue * operating_margin * (1 - self.assumptions.tax_rate)
+        terminal_reinv_rate = g / terminal_roic
+        terminal_fcf = terminal_nopat * (1 - terminal_reinv_rate)
+        pv_terminal = (terminal_fcf / spread) / ((1 + wacc) ** len(fcf_projections))
 
         equity_value = pv_fcf + pv_terminal - net_debt
         return equity_value / shares if shares > 0 else 0

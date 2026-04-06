@@ -68,6 +68,7 @@ Located in `DCFAssumptions` dataclass (`dcf.py`):
 - Market risk premium: 5%
 - Tax rate: 21%
 - Cost of debt: 5%
+- Terminal ROIC: defaults to WACC (no excess returns in perpetuity; override for wide-moat companies)
 
 ## Data Handling
 
