@@ -512,6 +512,27 @@ class TestReverseDCF:
         assert 'wacc' in result
         assert result['wacc'] > 0
 
+    def test_can_find_negative_growth(self, sample_financial_data):
+        """Reverse DCF should find negative growth for very low target prices"""
+        model = DCFModel(DCFAssumptions())
+        # A very low target price should imply negative growth
+        result = model.reverse_dcf(sample_financial_data, 10e9, 5.0)
+        assert result is not None
+        assert result['implied_value'] < 0
+
+
+# --- Sensitivity Table ---
+
+class TestSensitivityTable:
+    def test_negative_growth_in_table(self, sample_financial_data):
+        """Sensitivity table should include negative growth when base is low"""
+        assumptions = DCFAssumptions(revenue_growth_rate=0.02, sales_to_capital_ratio=2.0)
+        model = DCFModel(assumptions)
+        model.calculate_fair_value(sample_financial_data, 10e9, 100.0, verbose=True)
+        summary = model.get_summary()
+        # Base growth is 2%, so -2% step should appear
+        assert "-2.0%" in summary or "-2.0%*" in summary
+
 
 # --- Summary ---
 

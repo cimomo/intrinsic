@@ -493,8 +493,8 @@ class DCFModel:
         if max_iterations <= 0:
             return None
 
-        low = 0.0
-        high = 0.50  # 0% to 50% growth
+        low = -0.10  # Allow negative growth (declining companies)
+        high = 0.50
         mid = (low + high) / 2
         fair_value = 0.0
         result = {}
@@ -740,7 +740,7 @@ class DCFModel:
             round(base_growth + 0.02, 4),
             round(base_growth + 0.04, 4),
         ]))
-        growth_steps = [g for g in growth_steps if g >= 0]
+        growth_steps = [g for g in growth_steps if g > -1.0]  # Allow negative growth in sensitivity
 
         # Operating margin steps: base +/- 3%, 6% in 3% increments
         margin_steps = sorted(set([
