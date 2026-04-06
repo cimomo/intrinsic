@@ -26,7 +26,7 @@ Assumptions are split into three tiers based on how much attention they need:
 **Mechanical assumptions** — company-specific but derivable from financial data, no judgment needed.
 - Beta (from company overview)
 - Cost of Debt (interest expense / total debt)
-- Tax Rate (tax expense / pre-tax income)
+- Tax Rate: marginal (21% default) + effective (from income statement; transitions to marginal over projection period)
 
 **Market/fixed assumptions** — rarely change, near-constant.
 - Risk-Free Rate (10-year Treasury, default 4.5%)
