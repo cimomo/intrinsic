@@ -2,7 +2,7 @@
 
 Systematic comparison of Intrinsic's DCF implementation against Prof. Aswath Damodaran's valuation framework (NYU Stern). Damodaran is the primary intellectual foundation for this project — this audit identifies where we align, where we diverge, and what's worth fixing.
 
-**Date:** 2026-04-05
+**Date:** 2026-04-05 (updated 2026-04-05)
 
 ---
 
@@ -360,51 +360,63 @@ Damodaran sometimes transitions beta -> 1.0 and D/E -> industry average during t
 
 ## Summary table
 
-| # | Gap | Phase | Priority | Effort |
-|---|-----|-------|----------|--------|
-| 1 | ROIC computation | 1 | HIGH | Small |
-| 2 | Terminal value reinvestment (g/ROIC) | 1 | HIGH | Small |
-| 7 | Equity bridge (options, preferred, minority) | 1 | HIGH | Medium |
-| 3 | Fundamental growth cross-check | 1 | MEDIUM-HIGH | Small |
-| 8 | Tax rate transition (effective -> marginal) | 1 | MEDIUM-HIGH | Small |
-| 4 | Value-of-growth check (ROIC vs WACC) | 1 | MEDIUM | Small |
-| 5 | Reverse DCF negative growth | 1 | MEDIUM | Trivial |
-| 6 | Sensitivity table negative growth | 1 | LOW-MEDIUM | Trivial |
-| 9 | Bottom-up beta | 2 | MEDIUM-HIGH | Medium |
-| 10 | Implied ERP | 2 | MEDIUM | Small |
-| 11 | Synthetic credit rating (cost of debt) | 2 | MEDIUM | Medium |
-| 12 | Cyclical earnings normalization | 2 | MEDIUM | Medium |
-| 13 | R&D capitalization | 3 | MEDIUM-HIGH | Medium |
-| 14 | Industry base rate comparisons | 3 | MEDIUM | Large |
-| 15 | Financial services warning | 3 | MEDIUM | Small |
-| 16 | Distress probability adjustment | 3 | LOW-MEDIUM | Medium |
-| 17 | Operating lease capitalization | 3 | LOW-MEDIUM | Medium |
-| 18 | Country risk premium | 3 | LOW-MEDIUM | Medium |
-| 19 | Multi-stage WACC | 3 | LOW | Medium |
+| # | Gap | Phase | Priority | Status | Commit |
+|---|-----|-------|----------|--------|--------|
+| 1 | ROIC computation | 1 | HIGH | **DONE** | `75a5321` — ROIC in metrics, value skill, calibrate coherence check |
+| 2 | Terminal value reinvestment (g/ROIC) | 1 | HIGH | **DONE** | `419e49b` — Damodaran reinvestment approach, terminal ROIC defaults to WACC, configurable for wide-moat |
+| 3 | Fundamental growth cross-check | 1 | MEDIUM-HIGH | **DONE** | `75a5321` — Added to calibrate coherence check with #1 |
+| 4 | Value-of-growth check (ROIC vs WACC) | 1 | MEDIUM | **DONE** | `75a5321` — Added to calibrate coherence check with #1 |
+| 5 | Reverse DCF negative growth | 1 | MEDIUM | **DONE** | `07c90e9` — Search bounds [-10%, 50%] |
+| 6 | Sensitivity table negative growth | 1 | LOW-MEDIUM | **DONE** | `07c90e9` — Removed >= 0 filter |
+| 7 | Equity bridge (options, preferred, minority) | 1 | HIGH | TODO | |
+| 8 | Tax rate transition (effective -> marginal) | 1 | MEDIUM-HIGH | **DONE** | `b235a96` — effective_tax_rate transitions to marginal over projection period |
+| 9 | Bottom-up beta | 2 | MEDIUM-HIGH | TODO | |
+| 10 | Implied ERP | 2 | MEDIUM | TODO | |
+| 11 | Synthetic credit rating (cost of debt) | 2 | MEDIUM | TODO | Addresses known GOOGL issue (see feedback/invest-2026-04-04.md) |
+| 12 | Cyclical earnings normalization | 2 | MEDIUM | TODO | |
+| 13 | R&D capitalization | 3 | MEDIUM-HIGH | TODO | |
+| 14 | Industry base rate comparisons | 3 | MEDIUM | TODO | |
+| 15 | Financial services warning | 3 | MEDIUM | TODO | |
+| 16 | Distress probability adjustment | 3 | LOW-MEDIUM | TODO | |
+| 17 | Operating lease capitalization | 3 | LOW-MEDIUM | TODO | |
+| 18 | Country risk premium | 3 | LOW-MEDIUM | TODO | |
+| 19 | Multi-stage WACC | 3 | LOW | TODO | |
 
 ---
 
 ## Implementation plan
 
-**Phase 1 — Model correctness** (items 1-8). Two clusters:
+### Phase 1 — Model correctness (items 1-8)
 
-*ROIC-aware model (items 1-6):*
-1. Add ROIC to `metrics.py` — new field in `CompanyMetrics`, compute in `calculate_dcf_inputs()`
-2. Fix terminal value in `dcf.py` — use `g/ROIC` reinvestment rate
-3. Add fundamental growth check to calibrate skill — `g_fundamental = reinvestment_rate * ROIC`
-4. Add value-of-growth warning to calibrate coherence check — flag when ROIC < WACC
-5. Allow negative growth in reverse DCF — change `low` bound
-6. Allow negative growth in sensitivity table — remove `>= 0` filter
+**DONE (7 of 8):**
+- Items 1, 3, 4 shipped together (`75a5321`): ROIC computation + calibrate coherence check with fundamental growth and value-of-growth warnings
+- Item 2 (`419e49b`): Terminal value uses g/ROIC reinvestment. Terminal ROIC defaults to WACC, overridable for wide-moat companies. Promoted to core assumption in calibrate with moat-based framework.
+- Items 5, 6 (`07c90e9`): Negative growth allowed in reverse DCF and sensitivity table
+- Item 8 (`b235a96`): Tax rate transitions from effective to marginal over projection period. Terminal value always uses marginal.
 
-*Equity bridge and tax (items 7-8):*
-7. Complete the enterprise-to-equity bridge — subtract preferred stock, minority interests, estimate option dilution
-8. Add tax rate transition — effective in early years, marginal by terminal year
+**Remaining:**
+- **Item 7 (equity bridge):** Subtract preferred stock, minority interests from equity value. Options dilution is the hard part — requires data beyond Alpha Vantage (options outstanding, strike prices). Preferred stock and minority interests are available from Alpha Vantage balance sheet data. Suggested approach: start with preferred + minority (available data), defer options to a dilution estimate or skip with a documented limitation.
 
-After Phase 1, the model would reflect Damodaran's two central ideas: (a) value creation depends on ROIC vs WACC, and (b) the bridge from enterprise value to equity per share has more steps than most implementations include.
+### Phase 2 — Better inputs (items 9-12)
 
-**Phase 2 — Better inputs** (items 9-12): bottom-up beta, implied ERP, synthetic cost of debt, cyclical normalization. These improve assumption quality without changing model structure.
+Not started. These improve assumption quality without changing model structure.
+- **#11 (synthetic credit rating)** is the highest priority in this phase — it addresses the known GOOGL cost-of-debt issue (see `docs/internal/feedback/invest-2026-04-04.md`)
+- **#9 (bottom-up beta)** requires either hardcoding Damodaran's industry beta table or fetching it
+- **#10 (implied ERP)** is a small default update or web lookup
+- **#12 (cyclical normalization)** is a calibrate skill change
 
-**Phase 3 — Structural adjustments** (items 13-19): R&D capitalization, industry base rates, financial services warning, distress, leases, country risk, multi-stage WACC. Higher effort, most impactful for specific company types.
+### Phase 3 — Structural adjustments (items 13-19)
+
+Not started. Higher effort, most impactful for specific company types.
+
+### Test count
+
+175 tests as of `81ab5cb`. Key additions:
+- 9 ROIC tests (metrics.py edge cases)
+- 10 terminal value tests (g/ROIC reinvestment, terminal ROIC default/override/guards)
+- 4 tax rate transition tests (interpolation, convergence, terminal uses marginal)
+- 2 negative growth tests (reverse DCF, sensitivity table)
+- 2 integration tests (explicit terminal ROIC, _recalc consistency)
 
 ---
 
