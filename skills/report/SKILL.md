@@ -60,7 +60,7 @@ Confidence: High/Medium/Low | Signals: Growth X (Y), Moat X/Y, Margin X, Capital
 Before writing, think through the analytical questions:
 - Extract research signals: Growth signal, Confidence, Moat, Direction, Margin signal, Capital intensity
 - Extract valuation results: fair value, sensitivity range, reverse DCF implied growth, highest-impact assumption, sanity check warnings, confidence-adjusted recommendation
-- Extract assumption metadata: manual overrides, key assumption values (revenue growth, target margin, S/C ratio)
+- Extract assumption metadata: manual overrides, key assumption values (revenue growth, target margin, S/C ratio, terminal ROIC, effective vs marginal tax rate)
 - **Alignment check:**
   - For each research signal, compare to the corresponding assumption. Flag disconnects — if aligned, a brief note is sufficient. Spend detail on mismatches.
   - Check if valuation structure is vulnerable to research Key Risks (e.g., high terminal value concentration + long-term uncertainty flagged in research)
