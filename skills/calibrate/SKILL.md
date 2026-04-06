@@ -152,7 +152,11 @@ If any value looks clearly outdated (e.g., risk-free rate is 4.5% but current Tr
 
 After all assumptions are set (core + mechanical + market/fixed), step back and review them as a whole. This is a reasoning step — no new data or web searches needed.
 
+**ROIC context:** Before running consistency checks, compute ROIC from `calculate_dcf_inputs()` (returned as `dcf_inputs['roic']`). Display it: "Current ROIC: X.X% | WACC: Y.Y% | Spread: Z.Z%". This anchors the checks below.
+
 **Cross-assumption consistency:** Do the assumptions make sense together?
+- **Value of growth:** If ROIC < WACC, growth destroys value — higher growth makes the stock *less* valuable. Flag prominently: "ROIC (X%) is below WACC (Y%). At these returns, growth destroys value. Either ROIC must improve (higher margins or better capital efficiency) or the growth assumption is working against you."
+- **Fundamental growth check:** Compute `reinvestment_rate = (Revenue × growth_rate / sales_to_capital) / NOPAT` (where Revenue and NOPAT are current-year values). Then `fundamental_growth = reinvestment_rate × ROIC`. If the assumed revenue growth rate significantly exceeds fundamental growth, flag: "Assumed growth (X%) exceeds what current ROIC and reinvestment support (Y%). Achieving X% requires improving ROIC or increasing reinvestment beyond current levels."
 - High revenue growth + low sales-to-capital → implies heavy reinvestment. Calculate the implied reinvestment: Revenue × Growth Rate / S-C Ratio. Compare this to actual CapEx. If they diverge significantly, either S/C is wrong or not all CapEx is growth-related — state which you're assuming.
 - Expanding margins + high revenue growth → is the company actually showing operating leverage, or does growth require investment that pressures margins?
 - Moat rated "Narrowing" or "None" → should terminal growth be at or below risk-free rate?

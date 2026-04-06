@@ -31,7 +31,7 @@ PYTHONPATH="${CLAUDE_PLUGIN_ROOT:-.}" python3 -c "from stock_analyzer import ...
 - Use `stock_analyzer.metrics.FinancialMetrics` to parse and format the data
 - Show:
   - Valuation metrics (P/E, PEG, P/B, etc.)
-  - Profitability metrics (margins, ROE, ROA)
+  - Profitability metrics (margins, ROIC, ROE, ROA). ROIC is returned by `calculate_dcf_inputs()` — set it on the `CompanyMetrics` object: `metrics.roic = dcf_inputs['roic']`
   - Growth rates
   - Financial health indicators
   - Per-share metrics

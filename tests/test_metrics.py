@@ -108,6 +108,86 @@ class TestCalculateDCFInputs:
         inputs = FinancialMetrics.calculate_dcf_inputs([{}], [{}], cashflow, {})
         assert inputs['capex'] == 5000
 
+    def test_roic_with_effective_tax_rate(self, full_statements):
+        """ROIC uses effective tax rate from income statement"""
+        income, balance, cashflow, overview = full_statements
+        # Add tax data: 20% effective rate (24B tax on 120B pre-tax)
+        income[0]['incomeTaxExpense'] = '24000000000'
+        income[0]['incomeBeforeTax'] = '120000000000'
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, cashflow, overview)
+        # NOPAT = 120B * (1 - 0.20) = 96B
+        # Invested Capital = 200B + 100B - 60B = 240B
+        # ROIC = 96B / 240B = 0.40
+        assert inputs['roic'] == pytest.approx(0.40)
+        assert inputs['invested_capital'] == 240_000_000_000
+
+    def test_roic_defaults_to_marginal_tax_when_no_tax_data(self, full_statements):
+        """Falls back to 21% marginal rate when tax data missing"""
+        income, balance, cashflow, overview = full_statements
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, cashflow, overview)
+        # NOPAT = 120B * (1 - 0.21) = 94.8B
+        # Invested Capital = 200B + 100B - 60B = 240B
+        # ROIC = 94.8B / 240B = 0.395
+        assert inputs['roic'] == pytest.approx(0.395)
+
+    def test_roic_negative_operating_income(self):
+        """Negative operating income produces negative ROIC"""
+        income = [{'totalRevenue': '100000', 'operatingIncome': '-20000'}]
+        balance = [{'totalShareholderEquity': '80000', 'shortLongTermDebtTotal': '30000',
+                    'cashAndCashEquivalentsAtCarryingValue': '10000'}]
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, [{}], {})
+        # Invested Capital = 80K + 30K - 10K = 100K
+        # NOPAT = -20K * (1 - 0.21) = -15.8K
+        # ROIC = -15.8K / 100K = -0.158
+        assert inputs['roic'] == pytest.approx(-0.158)
+        assert inputs['roic'] < 0
+
+    def test_roic_none_when_invested_capital_zero_or_negative(self):
+        """ROIC is None when cash exceeds equity + debt"""
+        income = [{'totalRevenue': '100000', 'operatingIncome': '30000'}]
+        balance = [{'totalShareholderEquity': '20000', 'shortLongTermDebtTotal': '10000',
+                    'cashAndCashEquivalentsAtCarryingValue': '50000'}]
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, [{}], {})
+        # Invested Capital = 20K + 10K - 50K = -20K
+        assert inputs['roic'] is None
+
+    def test_roic_zero_operating_income(self):
+        """Zero operating income produces ROIC of zero, not None"""
+        income = [{'totalRevenue': '100000', 'operatingIncome': '0'}]
+        balance = [{'totalShareholderEquity': '80000', 'shortLongTermDebtTotal': '20000',
+                    'cashAndCashEquivalentsAtCarryingValue': '10000'}]
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, [{}], {})
+        assert inputs['roic'] == 0.0
+
+    def test_roic_empty_statements(self):
+        """ROIC is None when no data available"""
+        inputs = FinancialMetrics.calculate_dcf_inputs([], [], [], {})
+        assert inputs['roic'] is None
+
+    def test_roic_negative_pretax_income_uses_marginal_rate(self):
+        """Negative pre-tax income (non-operating losses) falls back to 21% marginal"""
+        income = [{'totalRevenue': '100000', 'operatingIncome': '20000',
+                   'incomeBeforeTax': '-5000', 'incomeTaxExpense': '0'}]
+        balance = [{'totalShareholderEquity': '80000', 'shortLongTermDebtTotal': '20000',
+                    'cashAndCashEquivalentsAtCarryingValue': '10000'}]
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, [{}], {})
+        # pre_tax_income < 0 → falls back to 21% marginal
+        # NOPAT = 20K * (1 - 0.21) = 15.8K
+        # Invested Capital = 80K + 20K - 10K = 90K
+        assert inputs['roic'] == pytest.approx(15800 / 90000)
+
+    def test_roic_negative_tax_expense_uses_marginal_rate(self):
+        """Negative tax expense (tax credits/refunds) falls back to 21% marginal"""
+        income = [{'totalRevenue': '100000', 'operatingIncome': '20000',
+                   'incomeBeforeTax': '15000', 'incomeTaxExpense': '-2000'}]
+        balance = [{'totalShareholderEquity': '80000', 'shortLongTermDebtTotal': '20000',
+                    'cashAndCashEquivalentsAtCarryingValue': '10000'}]
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, [{}], {})
+        # tax_expense < 0 → falls back to 21% marginal
+        # NOPAT = 20K * (1 - 0.21) = 15.8K
+        # Invested Capital = 90K
+        assert inputs['roic'] == pytest.approx(15800 / 90000)
+
 
 # --- Format Metrics ---
 

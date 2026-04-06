@@ -26,6 +26,7 @@ class CompanyMetrics:
     operating_margin: Optional[float] = None
     return_on_equity: Optional[float] = None
     return_on_assets: Optional[float] = None
+    roic: Optional[float] = None
 
     # Growth metrics
     revenue_growth: Optional[float] = None
@@ -149,6 +150,19 @@ class FinancialMetrics:
         beta = safe_float(overview.get('Beta'), 1.0)
         market_cap = safe_float(overview.get('MarketCapitalization'), 0)
 
+        # Calculate ROIC: NOPAT / Invested Capital
+        tax_rate = 0.21  # Default marginal tax rate
+        tax_expense = safe_float(latest_income.get('incomeTaxExpense'), 0)
+        pre_tax_income = safe_float(latest_income.get('incomeBeforeTax'), 0)
+        if pre_tax_income > 0 and tax_expense >= 0:
+            tax_rate = tax_expense / pre_tax_income
+
+        invested_capital = equity + total_debt - cash
+        roic = None
+        if invested_capital > 0:
+            nopat = operating_income * (1 - tax_rate)
+            roic = nopat / invested_capital
+
         return {
             'revenue': revenue,
             'operating_income': operating_income,
@@ -161,6 +175,8 @@ class FinancialMetrics:
             'nwc_change': nwc_change,
             'operating_cashflow': operating_cashflow,
             'total_assets': total_assets,
+            'roic': roic,
+            'invested_capital': invested_capital,
         }
 
     @staticmethod
@@ -205,6 +221,7 @@ VALUATION METRICS
 PROFITABILITY
   Profit Margin:     {format_value(metrics.profit_margin, is_percent=True)}
   Operating Margin:  {format_value(metrics.operating_margin, is_percent=True)}
+  ROIC:              {format_value(metrics.roic, is_percent=True)}
   ROE:               {format_value(metrics.return_on_equity, is_percent=True)}
   ROA:               {format_value(metrics.return_on_assets, is_percent=True)}
 
