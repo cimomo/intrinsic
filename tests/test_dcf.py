@@ -324,6 +324,20 @@ class TestTerminalValue:
         assert details['terminal_reinvestment_rate'] == pytest.approx(0.30)
         assert details['terminal_fcf'] == pytest.approx(details['terminal_nopat'] * 0.70)
 
+    def test_terminal_value_uses_marginal_not_effective_tax(self):
+        """Terminal value should use marginal tax rate even when effective is set"""
+        assumptions = DCFAssumptions(
+            tax_rate=0.21, effective_tax_rate=0.05,
+            terminal_growth_rate=0.03,
+        )
+        model = DCFModel(assumptions)
+        _, details = model.calculate_terminal_value(
+            final_year_revenue=100e9, final_year_margin=0.30, wacc=0.10
+        )
+        # Terminal NOPAT should use marginal (21%), not effective (5%)
+        expected_nopat = 100e9 * 1.03 * 0.30 * (1 - 0.21)
+        assert details['terminal_nopat'] == pytest.approx(expected_nopat)
+
     def test_terminal_roic_below_growth_raises(self):
         """Terminal ROIC below terminal growth rate is invalid (reinvestment > 100%)"""
         assumptions = DCFAssumptions(terminal_growth_rate=0.045, terminal_roic=0.03)
