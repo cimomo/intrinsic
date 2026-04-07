@@ -479,7 +479,7 @@ Damodaran sometimes transitions beta -> 1.0 and D/E -> industry average during t
 | 6 | Sensitivity table negative growth | 1 | LOW-MEDIUM | **DONE** | `07c90e9` — Removed >= 0 filter |
 | 7 | Equity bridge (options, preferred, minority, cross-holdings) | 1 | HIGH | TODO | |
 | 8 | Tax rate transition (effective -> marginal) | 1 | MEDIUM-HIGH | **DONE** | `b235a96` — effective_tax_rate transitions to marginal over projection period |
-| 8b | WACC tax rate consistency | 1 | LOW-MEDIUM | TODO | Debt tax shield uses fixed marginal rate even when effective_tax_rate is active |
+| 8b | WACC tax rate consistency | 1 | LOW-MEDIUM | **DONE** | Year-varying WACC when effective_tax_rate is set + cost_of_capital hurdle rate override |
 | 9 | Bottom-up beta | 2 | MEDIUM-HIGH | TODO | |
 | 10 | Implied ERP | 2 | MEDIUM | TODO | Current default 5.0% vs Damodaran's Jan 2026 implied 4.23% |
 | 11 | Synthetic credit rating (cost of debt) | 2 | MEDIUM | TODO | Addresses known GOOGL issue; Jan 2026 lookup table added |
@@ -508,7 +508,7 @@ Damodaran sometimes transitions beta -> 1.0 and D/E -> industry average during t
 
 **Remaining:**
 - **Item 7 (equity bridge):** Subtract preferred stock, minority interests from equity value. Add cross-holdings and non-operating assets. Distinguish operating from excess cash. Options dilution is the hard part — requires data beyond Alpha Vantage (options outstanding, strike prices). Preferred stock and minority interests are available from Alpha Vantage balance sheet data. Suggested approach: start with preferred + minority (available data), defer options to a dilution estimate or skip with a documented limitation.
-- **Item 8b (WACC tax consistency):** Small fix — `calculate_wacc()` should use year-specific tax rate for debt shield when `effective_tax_rate` is set. Low impact for typical companies but technically inconsistent.
+- **Item 8b (WACC tax consistency):** DONE — `calculate_wacc()` now uses year-specific tax rate for debt shield when `effective_tax_rate` is set. Also added `cost_of_capital` hurdle rate override that bypasses WACC computation entirely.
 
 ### Phase 2 — Better inputs (items 9-12)
 

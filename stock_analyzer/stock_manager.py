@@ -90,6 +90,7 @@ class StockManager:
                 projection_years=data.get('projection_years', 10),
                 sales_to_capital_ratio=data.get('sales_to_capital_ratio'),
                 terminal_roic=data.get('terminal_roic'),
+                cost_of_capital=data.get('cost_of_capital'),
             )
 
             return assumptions
@@ -138,6 +139,7 @@ class StockManager:
             'projection_years': assumptions.projection_years,
             'sales_to_capital_ratio': assumptions.sales_to_capital_ratio,
             'terminal_roic': assumptions.terminal_roic,
+            'cost_of_capital': assumptions.cost_of_capital,
         }
 
         if manual_overrides:
@@ -452,5 +454,8 @@ class StockManager:
             summary += f"  Terminal ROIC:               {assumptions.terminal_roic*100:.1f}% (explicit)\n"
         else:
             summary += f"  Terminal ROIC:               = WACC (default)\n"
+
+        if assumptions.cost_of_capital is not None:
+            summary += f"  Cost of Capital:             {assumptions.cost_of_capital*100:.1f}% (manual hurdle rate)\n"
 
         return summary

@@ -158,6 +158,10 @@ V = E + D
 
 Equity is weighted at market value (market cap). Debt is weighted at book value — close enough for most companies, and market value of debt requires bond pricing data.
 
+**Year-varying WACC.** When the effective tax rate differs from marginal, the debt tax shield varies year by year — a company with a 5% effective rate gets less tax benefit from debt than one at 21%. The model computes a separate WACC for each projection year, using that year's blended tax rate for the debt shield. The terminal value uses the marginal-rate WACC. When effective and marginal rates are the same, all years get the same WACC.
+
+**Hurdle rate override.** If `cost_of_capital` is set, it bypasses WACC computation entirely — beta, ERP, and cost of debt become irrelevant. This is useful when WACC components have known limitations or when the investor has a specific required return.
+
 See [Known limitations](#known-limitations) for how beta, cost of debt, and equity risk premium can be improved.
 
 ---
@@ -276,6 +280,7 @@ Negative growth rates are allowed in the sensitivity table.
 | Cost of debt | 5.0% | Pre-tax; synthetic rating approach preferred |
 | Sales-to-capital ratio | Computed from financials | Revenue / Invested Capital |
 | Terminal ROIC | WACC | No excess returns in perpetuity; override for wide moats |
+| Cost of capital | None | Compute WACC from components; set to override with manual hurdle rate |
 
 All defaults except terminal growth rate (hard cap) and marginal tax rate (statutory) should be calibrated for the specific company before running a valuation.
 

@@ -234,6 +234,170 @@ class TestProjectFCF:
         assert model._get_tax_rate_for_year(10, 10) == pytest.approx(0.21)
 
 
+# --- WACC Tax Consistency & Cost of Capital Override ---
+
+class TestWACCTaxConsistency:
+    def test_wacc_uses_year_specific_tax_for_debt_shield(self):
+        """When effective_tax_rate is set, WACC debt shield should use year-specific rate"""
+        assumptions = DCFAssumptions(
+            tax_rate=0.21, effective_tax_rate=0.05,
+            cost_of_debt=0.05, risk_free_rate=0.045, market_risk_premium=0.05,
+        )
+        model = DCFModel(assumptions)
+        # Year 1 tax = 0.05 + (0.21-0.05) * 1/10 = 0.066
+        wacc_year1 = model.calculate_wacc(beta=1.0, debt_to_equity=0.5, market_cap=1000, total_debt=500, tax_rate=0.066)
+        # Year 10 tax = 0.21
+        wacc_year10 = model.calculate_wacc(beta=1.0, debt_to_equity=0.5, market_cap=1000, total_debt=500, tax_rate=0.21)
+        # Lower tax rate → less debt shield → higher WACC
+        assert wacc_year1 > wacc_year10
+
+    def test_wacc_varies_in_fair_value_when_effective_set(self):
+        """Fair value calculation should use year-varying WACC when effective_tax_rate is set"""
+        # With effective tax rate (year-varying WACC)
+        assumptions_eff = DCFAssumptions(
+            revenue_growth_rate=0.10, tax_rate=0.21, effective_tax_rate=0.05,
+            cost_of_debt=0.05, projection_years=10,
+        )
+        model_eff = DCFModel(assumptions_eff)
+        result_eff = model_eff.calculate_fair_value(
+            {'revenue': 100e9, 'operating_income': 30e9, 'total_debt': 50e9,
+             'cash': 20e9, 'equity': 80e9, 'market_cap': 200e9, 'beta': 1.0},
+            shares_outstanding=1e9, current_price=100, verbose=True
+        )
+        # wacc_per_year should exist and have 10 entries
+        assert 'wacc_per_year' in result_eff
+        assert len(result_eff['wacc_per_year']) == 10
+        # Early years should have higher WACC (less debt shield)
+        assert result_eff['wacc_per_year'][0] > result_eff['wacc_per_year'][-1]
+
+    def test_wacc_flat_when_no_effective_tax(self):
+        """Without effective_tax_rate, all years should have the same WACC"""
+        assumptions = DCFAssumptions(
+            revenue_growth_rate=0.10, tax_rate=0.21,
+            cost_of_debt=0.05, projection_years=10,
+        )
+        model = DCFModel(assumptions)
+        result = model.calculate_fair_value(
+            {'revenue': 100e9, 'operating_income': 30e9, 'total_debt': 50e9,
+             'cash': 20e9, 'equity': 80e9, 'market_cap': 200e9, 'beta': 1.0},
+            shares_outstanding=1e9, current_price=100, verbose=True
+        )
+        wacc_per_year = result['wacc_per_year']
+        # All years should be the same
+        assert all(w == pytest.approx(wacc_per_year[0]) for w in wacc_per_year)
+
+    def test_negative_effective_tax_rate(self):
+        """Negative effective tax rate (large NOLs/credits) should not crash"""
+        assumptions = DCFAssumptions(
+            revenue_growth_rate=0.10, tax_rate=0.21, effective_tax_rate=-0.05,
+            cost_of_debt=0.05, projection_years=10,
+        )
+        model = DCFModel(assumptions)
+        result = model.calculate_fair_value(
+            {'revenue': 100e9, 'operating_income': 30e9, 'total_debt': 50e9,
+             'cash': 20e9, 'equity': 80e9, 'market_cap': 200e9, 'beta': 1.0},
+            shares_outstanding=1e9, current_price=100, verbose=True
+        )
+        # Should produce a valid result (higher fair value from tax benefits)
+        assert result['fair_value'] > 0
+        # Year 1 WACC should be higher than year 10 (negative tax = no debt shield)
+        assert result['wacc_per_year'][0] > result['wacc_per_year'][-1]
+
+    def test_zero_debt_wacc_unaffected_by_tax_transition(self):
+        """For zero-debt companies, year-varying tax rate should not affect WACC"""
+        assumptions = DCFAssumptions(
+            revenue_growth_rate=0.10, tax_rate=0.21, effective_tax_rate=0.05,
+            cost_of_debt=0.05, projection_years=10,
+        )
+        model = DCFModel(assumptions)
+        result = model.calculate_fair_value(
+            {'revenue': 100e9, 'operating_income': 30e9, 'total_debt': 0,
+             'cash': 20e9, 'equity': 80e9, 'market_cap': 200e9, 'beta': 1.0},
+            shares_outstanding=1e9, current_price=100, verbose=True
+        )
+        # All years should have the same WACC (debt weight is zero)
+        assert all(w == pytest.approx(result['wacc_per_year'][0]) for w in result['wacc_per_year'])
+
+
+class TestCostOfCapitalOverride:
+    def test_hurdle_rate_overrides_wacc(self):
+        """cost_of_capital should bypass WACC computation entirely"""
+        assumptions = DCFAssumptions(
+            cost_of_capital=0.12,
+            risk_free_rate=0.045, market_risk_premium=0.05,
+            cost_of_debt=0.05,
+        )
+        model = DCFModel(assumptions)
+        wacc = model.calculate_wacc(beta=1.0, debt_to_equity=0.5, market_cap=1000, total_debt=500)
+        assert wacc == 0.12
+
+    def test_hurdle_rate_ignores_beta_and_erp(self):
+        """Changing beta/ERP should not affect WACC when cost_of_capital is set"""
+        assumptions = DCFAssumptions(cost_of_capital=0.10)
+        model = DCFModel(assumptions)
+        wacc1 = model.calculate_wacc(beta=0.5, debt_to_equity=0, market_cap=1000, total_debt=0)
+        wacc2 = model.calculate_wacc(beta=2.0, debt_to_equity=1.0, market_cap=1000, total_debt=1000)
+        assert wacc1 == 0.10
+        assert wacc2 == 0.10
+
+    def test_hurdle_rate_used_in_fair_value(self):
+        """Fair value should use the manual hurdle rate"""
+        assumptions = DCFAssumptions(
+            revenue_growth_rate=0.10, cost_of_capital=0.10, projection_years=10,
+        )
+        model = DCFModel(assumptions)
+        result = model.calculate_fair_value(
+            {'revenue': 100e9, 'operating_income': 30e9, 'total_debt': 50e9,
+             'cash': 20e9, 'equity': 80e9, 'market_cap': 200e9, 'beta': 1.0},
+            shares_outstanding=1e9, current_price=100, verbose=True
+        )
+        assert result['wacc'] == 0.10
+        # All years should be the same flat rate
+        assert all(w == 0.10 for w in result['wacc_per_year'])
+
+    def test_hurdle_rate_ignores_effective_tax(self):
+        """When cost_of_capital is set, effective_tax_rate should not affect WACC"""
+        assumptions = DCFAssumptions(
+            cost_of_capital=0.10, effective_tax_rate=0.05, tax_rate=0.21,
+        )
+        model = DCFModel(assumptions)
+        wacc = model.calculate_wacc(beta=1.0, debt_to_equity=0.5, market_cap=1000, total_debt=500, tax_rate=0.05)
+        assert wacc == 0.10
+
+    def test_hurdle_rate_default_is_none(self):
+        """cost_of_capital should default to None (compute WACC from components)"""
+        assumptions = DCFAssumptions()
+        assert assumptions.cost_of_capital is None
+
+    def test_hurdle_rate_with_effective_tax_rate(self):
+        """cost_of_capital override gives flat WACC but NOPAT still uses tax transition"""
+        assumptions = DCFAssumptions(
+            revenue_growth_rate=0.10, cost_of_capital=0.10,
+            tax_rate=0.21, effective_tax_rate=0.05, projection_years=10,
+        )
+        model = DCFModel(assumptions)
+        result = model.calculate_fair_value(
+            {'revenue': 100e9, 'operating_income': 30e9, 'total_debt': 50e9,
+             'cash': 20e9, 'equity': 80e9, 'market_cap': 200e9, 'beta': 1.0},
+            shares_outstanding=1e9, current_price=100, verbose=True
+        )
+        # WACC should be flat at 10% for all years
+        assert all(w == 0.10 for w in result['wacc_per_year'])
+        # But FCFs should differ from flat-tax case (NOPAT uses transitioning tax)
+        assumptions_flat_tax = DCFAssumptions(
+            revenue_growth_rate=0.10, cost_of_capital=0.10,
+            tax_rate=0.21, projection_years=10,
+        )
+        model_flat = DCFModel(assumptions_flat_tax)
+        result_flat = model_flat.calculate_fair_value(
+            {'revenue': 100e9, 'operating_income': 30e9, 'total_debt': 50e9,
+             'cash': 20e9, 'equity': 80e9, 'market_cap': 200e9, 'beta': 1.0},
+            shares_outstanding=1e9, current_price=100, verbose=True
+        )
+        # Lower effective tax → higher early NOPAT → higher fair value
+        assert result['fair_value'] > result_flat['fair_value']
+
+
 # --- Terminal Value ---
 
 class TestTerminalValue:
@@ -473,6 +637,33 @@ class TestCalculateFairValue:
         model = DCFModel(assumptions)
         r = model.calculate_fair_value(sample_financial_data, 10e9, 100.0, verbose=True)
         # _recalc_fair_value with same growth and margin should match
+        target_margin = assumptions.target_operating_margin or r['operating_margin']
+        recalc_fv = model._recalc_fair_value(
+            revenue_growth=assumptions.revenue_growth_rate,
+            operating_margin=target_margin,
+            wacc=r['wacc'],
+            sales_to_capital=r['sales_to_capital'],
+            base_revenue=r['base_revenue'],
+            shares=r['shares_outstanding'],
+            net_debt=r['net_debt'],
+        )
+        assert recalc_fv == pytest.approx(r['fair_value'], rel=1e-6)
+
+    def test_recalc_consistent_with_year_varying_wacc(self, sample_financial_data):
+        """_recalc_fair_value matches calculate_fair_value when effective_tax_rate is set"""
+        assumptions = DCFAssumptions(
+            revenue_growth_rate=0.10,
+            operating_margin=0.30,
+            sales_to_capital_ratio=2.0,
+            terminal_roic=0.18,
+            tax_rate=0.21,
+            effective_tax_rate=0.05,
+        )
+        model = DCFModel(assumptions)
+        r = model.calculate_fair_value(sample_financial_data, 10e9, 100.0, verbose=True)
+        # wacc_per_year should vary (effective != marginal)
+        assert r['wacc_per_year'][0] != pytest.approx(r['wacc_per_year'][-1])
+        # _recalc_fair_value should match
         target_margin = assumptions.target_operating_margin or r['operating_margin']
         recalc_fv = model._recalc_fair_value(
             revenue_growth=assumptions.revenue_growth_rate,

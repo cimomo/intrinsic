@@ -42,6 +42,10 @@ class DCFAssumptions:
     # None = defaults to WACC (no excess returns in perpetuity, per Damodaran)
     terminal_roic: Optional[float] = None
 
+    # Cost of capital override — manual hurdle rate that bypasses WACC computation
+    # None = compute WACC from components (CAPM + cost of debt)
+    cost_of_capital: Optional[float] = None
+
     def __post_init__(self):
         """Set terminal growth rate to risk-free rate if not explicitly provided"""
         if self.terminal_growth_rate is None:
@@ -74,7 +78,8 @@ class DCFModel:
         beta: float,
         debt_to_equity: float,
         market_cap: float,
-        total_debt: float
+        total_debt: float,
+        tax_rate: Optional[float] = None
     ) -> float:
         """
         Calculate Weighted Average Cost of Capital (WACC)
@@ -88,15 +93,25 @@ class DCFModel:
             Rd = Cost of debt
             Tc = Corporate tax rate
 
+        If cost_of_capital is set on assumptions, returns that directly
+        (manual hurdle rate bypasses WACC computation).
+
         Args:
             beta: Stock beta (volatility vs market)
             debt_to_equity: Debt-to-equity ratio
             market_cap: Market capitalization
             total_debt: Total debt
+            tax_rate: Tax rate for debt shield (defaults to marginal if None)
 
         Returns:
             WACC as decimal (e.g., 0.10 for 10%)
         """
+        if self.assumptions.cost_of_capital is not None:
+            return self.assumptions.cost_of_capital
+
+        if tax_rate is None:
+            tax_rate = self.assumptions.tax_rate
+
         # Cost of equity using CAPM: Re = Rf + β(Rm - Rf)
         cost_of_equity = (
             self.assumptions.risk_free_rate +
@@ -115,7 +130,7 @@ class DCFModel:
         # WACC calculation
         wacc = (
             equity_weight * cost_of_equity +
-            debt_weight * self.assumptions.cost_of_debt * (1 - self.assumptions.tax_rate)
+            debt_weight * self.assumptions.cost_of_debt * (1 - tax_rate)
         )
 
         return wacc
@@ -309,13 +324,17 @@ class DCFModel:
         discount_rate: float
     ) -> float:
         """
-        Calculate present value of cash flows
+        Calculate present value of cash flows using a flat discount rate.
+
+        Note: calculate_fair_value uses cumulative year-specific discounting
+        internally (to support year-varying WACC). This method is retained
+        for flat-rate convenience and testing.
 
         PV = Σ(CF_t / (1 + r)^t)
 
         Args:
             cash_flows: List of future cash flows
-            discount_rate: Discount rate (WACC)
+            discount_rate: Discount rate (flat, same for all years)
 
         Returns:
             Present value of all cash flows
@@ -409,29 +428,46 @@ class DCFModel:
 
         # Calculate WACC
         debt_to_equity = total_debt / market_cap if market_cap > 0 else 0
-        wacc = self.calculate_wacc(beta, debt_to_equity, market_cap, total_debt)
+        years = self.assumptions.projection_years
+
+        # Compute per-year WACC when effective_tax_rate causes the tax rate
+        # (and thus the debt tax shield) to vary over the projection period.
+        # Terminal WACC always uses the marginal rate.
+        wacc_per_year = []
+        for year in range(1, years + 1):
+            year_tax = self._get_tax_rate_for_year(year, years)
+            wacc_per_year.append(self.calculate_wacc(beta, debt_to_equity, market_cap, total_debt, tax_rate=year_tax))
+        terminal_wacc = self.calculate_wacc(beta, debt_to_equity, market_cap, total_debt, tax_rate=self.assumptions.tax_rate)
+
+        # Use terminal WACC as the reported WACC (stable-state cost of capital)
+        wacc = terminal_wacc
 
         # Project free cash flows
         fcf_projections, margin_projections, final_year_revenue = self.project_free_cash_flows(
             base_revenue=revenue,
             operating_margin=operating_margin,
             sales_to_capital=sales_to_capital,
-            years=self.assumptions.projection_years
+            years=years
         )
 
-        # Calculate terminal value using Damodaran's reinvestment approach
+        # Calculate terminal value using reinvestment approach
         final_year_margin = margin_projections[-1] if margin_projections else operating_margin
         terminal_value, terminal_details = self.calculate_terminal_value(
             final_year_revenue=final_year_revenue,
             final_year_margin=final_year_margin,
-            wacc=wacc
+            wacc=terminal_wacc
         )
 
-        # Discount cash flows and terminal value to present
-        pv_fcf = self.calculate_present_value(fcf_projections, wacc)
-        pv_terminal_value = terminal_value / (
-            (1 + wacc) ** self.assumptions.projection_years
-        )
+        # Discount cash flows using year-specific WACC
+        # PV factor for year t = 1 / ∏(1 + wacc_i) for i=1..t
+        pv_fcf = 0
+        cumulative_discount = 1.0
+        for year_idx, fcf in enumerate(fcf_projections):
+            cumulative_discount *= (1 + wacc_per_year[year_idx])
+            pv_fcf += fcf / cumulative_discount
+
+        # Terminal value discounted through all projection years
+        pv_terminal_value = terminal_value / cumulative_discount
 
         # Enterprise value = PV of FCFs + PV of Terminal Value
         enterprise_value = pv_fcf + pv_terminal_value
@@ -462,6 +498,7 @@ class DCFModel:
             'pv_terminal_value': pv_terminal_value,
             'pv_fcf': pv_fcf,
             'sales_to_capital': sales_to_capital,
+            'wacc_per_year': wacc_per_year,
         }
         self.results.update(terminal_details)
 
@@ -592,7 +629,10 @@ class DCFModel:
             summary += f"  Effective Tax Rate:    {self.assumptions.effective_tax_rate*100:.1f}% (Year 1) → {self.assumptions.tax_rate*100:.0f}% (marginal, by Year {self.assumptions.projection_years})\n"
         else:
             summary += f"  Tax Rate:              {self.assumptions.tax_rate*100:.0f}%\n"
-        summary += f"  WACC:                  {r['wacc']*100:.2f}%\n"
+        if self.assumptions.cost_of_capital is not None:
+            summary += f"  Cost of Capital:       {r['wacc']*100:.2f}% (manual hurdle rate)\n"
+        else:
+            summary += f"  WACC:                  {r['wacc']*100:.2f}%\n"
 
         if 'sales_to_capital' in r:
             summary += f"  Sales-to-Capital:      {r['sales_to_capital']:.2f}x\n"
@@ -618,8 +658,10 @@ class DCFModel:
             base_margin = r.get('operating_margin', 0.30)
             margin_projections = r.get('margin_projections', [])
             sales_to_capital = r.get('sales_to_capital', 1.0)
+            wacc_per_year = r.get('wacc_per_year', [])
             growth_diff = self.assumptions.revenue_growth_rate - self.assumptions.terminal_growth_rate
             cumulative_pv_fcf = 0
+            cumulative_discount = 1.0
 
             for year in range(1, len(r['fcf_projections']) + 1):
                 # Determine growth rate
@@ -645,8 +687,10 @@ class DCFModel:
                 reinvestment = revenue_growth_dollars / sales_to_capital if sales_to_capital > 0 else 0
                 fcf = r['fcf_projections'][year - 1]
 
-                # PV calculation
-                pv_factor = 1 / ((1 + r['wacc']) ** year)
+                # PV calculation using year-specific WACC
+                year_wacc = wacc_per_year[year - 1] if wacc_per_year else r['wacc']
+                cumulative_discount *= (1 + year_wacc)
+                pv_factor = 1 / cumulative_discount
                 pv_fcf = fcf * pv_factor
                 cumulative_pv_fcf += pv_fcf
 
@@ -671,7 +715,16 @@ class DCFModel:
             terminal_nopat = r['terminal_nopat']
             terminal_fcf = r['terminal_fcf']
             terminal_value = r['terminal_value']
-            pv_factor_terminal = 1 / ((1 + r['wacc']) ** self.assumptions.projection_years)
+            # Use cumulative discount from the projection loop if available,
+            # otherwise fall back to flat WACC
+            wacc_per_year = r.get('wacc_per_year', [])
+            if wacc_per_year:
+                cum_disc = 1.0
+                for w in wacc_per_year:
+                    cum_disc *= (1 + w)
+                pv_factor_terminal = 1 / cum_disc
+            else:
+                pv_factor_terminal = 1 / ((1 + r['wacc']) ** self.assumptions.projection_years)
 
             summary += f"  Terminal Growth Rate:       {g*100:.1f}%\n"
             summary += f"  Terminal ROIC:              {terminal_roic*100:.2f}%"
@@ -836,6 +889,13 @@ class DCFModel:
         The operating_margin parameter is treated as the target margin for
         sensitivity analysis (no convergence within the recalc).
 
+        Uses the wacc_per_year from results if available (year-varying WACC),
+        otherwise falls back to the flat wacc parameter.
+
+        The wacc parameter is used for the terminal value spread (Gordon Growth)
+        and terminal ROIC default — it should be the terminal/marginal-rate WACC,
+        not a year-specific value.
+
         Returns:
             Fair value per share, or None on error
         """
@@ -844,6 +904,7 @@ class DCFModel:
         years = self.assumptions.projection_years
         revenue = base_revenue
         fcf_projections = []
+        wacc_per_year = self.results.get('wacc_per_year', [])
 
         for year in range(1, years + 1):
             if year <= 5:
@@ -862,11 +923,13 @@ class DCFModel:
         if not fcf_projections:
             return None
 
-        # PV of FCFs
-        pv_fcf = sum(
-            fcf / ((1 + wacc) ** year)
-            for year, fcf in enumerate(fcf_projections, start=1)
-        )
+        # PV of FCFs using year-specific WACC
+        pv_fcf = 0
+        cumulative_discount = 1.0
+        for year_idx, fcf in enumerate(fcf_projections):
+            year_wacc = wacc_per_year[year_idx] if wacc_per_year else wacc
+            cumulative_discount *= (1 + year_wacc)
+            pv_fcf += fcf / cumulative_discount
 
         # Terminal value using reinvestment-based approach
         g = self.assumptions.terminal_growth_rate
@@ -882,7 +945,7 @@ class DCFModel:
         terminal_nopat = terminal_revenue * operating_margin * (1 - self.assumptions.tax_rate)
         terminal_reinv_rate = g / terminal_roic
         terminal_fcf = terminal_nopat * (1 - terminal_reinv_rate)
-        pv_terminal = (terminal_fcf / spread) / ((1 + wacc) ** len(fcf_projections))
+        pv_terminal = (terminal_fcf / spread) / cumulative_discount
 
         equity_value = pv_fcf + pv_terminal - net_debt
         return equity_value / shares if shares > 0 else 0

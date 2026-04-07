@@ -33,6 +33,7 @@ Assumptions are split into three tiers based on how much attention they need:
 - Market Risk Premium (standard 5%)
 - Terminal Growth Rate (defaults to risk-free rate)
 - Projection Years (default 10)
+- Cost of Capital override (manual hurdle rate; None = compute WACC from components)
 
 ## Auto Mode (`--auto`)
 
@@ -195,13 +196,18 @@ Market/Fixed Assumptions (unchanged):
   Market risk premium:  5.0%
   Terminal growth rate: 4.5% (= risk-free rate)
   Projection years:    10
+  Cost of capital:     Computed from WACC (no override)
 ```
 
 If any value looks clearly outdated (e.g., risk-free rate is 4.5% but current Treasury is 3.8%), flag it: "Risk-free rate may be outdated — current 10-year Treasury is ~3.8%. Update? [y/N]"
 
+**Cost of capital override:** If the user wants to bypass WACC computation with a manual hurdle rate, they can set `cost_of_capital`. This overrides the computed WACC entirely — beta, ERP, and cost of debt become irrelevant. Display: "Cost of capital: computed at X.X% from CAPM. Override with a hurdle rate? [Enter to keep computed]"
+
+If already set: "Cost of capital: X.X% (manual hurdle rate). Remove override and compute from WACC? [Enter to keep]"
+
 **Interactive mode:** Ask once: "Any of these to adjust? [Enter to accept all]"
 
-**Auto mode:** Keep current values. Only update risk-free rate if a WebSearch was already done and the current value is more than 50bps off.
+**Auto mode:** Keep current values. Only update risk-free rate if a WebSearch was already done and the current value is more than 50bps off. Never auto-set or auto-remove a cost_of_capital override.
 
 ### 6. Coherence Check
 
