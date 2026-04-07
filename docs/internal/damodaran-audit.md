@@ -2,7 +2,7 @@
 
 Systematic comparison of Intrinsic's DCF implementation against Prof. Aswath Damodaran's valuation framework (NYU Stern). Damodaran is the primary intellectual foundation for this project — this audit identifies where we align, where we diverge, and what's worth fixing.
 
-**Date:** 2026-04-05 (updated 2026-04-05)
+**Date:** 2026-04-05 (updated 2026-04-06)
 
 ---
 
@@ -156,21 +156,35 @@ fair_value_per_share = equity_value / shares_outstanding
 
 Damodaran's complete bridge:
 ```
-Equity per share = (Enterprise Value
-                    + Cash
-                    - Total Debt
-                    - Preferred Stock (at market value)
-                    - Minority Interests (at market value, not book)
-                    - Value of Employee Options (Black-Scholes)
-                    - Unfunded Pension / Healthcare Obligations)
-                    / Shares Outstanding (actual, not diluted)
+Value of Operating Assets (PV of FCFs + PV of Terminal Value)
++ Cash and Marketable Securities (excess cash only)
++ Value of Cross-Holdings (minority investments at market value)
++ Value of Other Non-Operating Assets
+= Firm Value
+- Market Value of Debt (including capitalized leases)
+- Preferred Stock (at market or redemption value)
+- Minority Interests (at market value, not book)
+- Value of Employee Options (OPM, not treasury stock method)
+- Unfunded Pension / Healthcare Obligations
+- Contingent Liabilities (probability-weighted)
+= Common Equity Value
+/ Actual Shares Outstanding (NOT diluted)
+= Value Per Share
 ```
 
-We're missing four subtractions. The biggest for tech companies: **employee options**. Damodaran is emphatic that outstanding options/RSUs represent an equity claim that must be valued (via Black-Scholes or binomial model) and subtracted from equity value *before* dividing by shares. Using diluted share count is "an extremely sloppy way" to handle this.
+We're missing subtractions AND additions:
+
+**Missing subtractions:** Preferred stock, minority interests, employee options, unfunded pension. The biggest for tech companies: **employee options**. Damodaran is emphatic that outstanding options/RSUs represent an equity claim that must be valued (via Black-Scholes or option pricing model) and subtracted from equity value *before* dividing by shares. Using diluted share count is "an extremely sloppy way" to handle this. What NOT to do: treasury stock method (ignores time value, always overvalues shares) or "fully diluted" (ignores exercise cash proceeds, undervalues shares).
+
+**Missing additions:** Cross-holdings / minority investments (at market value), other non-operating assets.
+
+**Cash quality:** Damodaran distinguishes operating cash (needed for business) from excess cash. Only excess cash should be added back. For multinationals, cash trapped overseas may deserve a discount for repatriation taxes (though post-2017 TCJA this matters less for US companies). He warns against assuming zero operating cash needs.
 
 For preferred stock and minority interests: Alpha Vantage provides these in the balance sheet data. Pension obligations may require additional data.
 
 The options piece requires: number of options outstanding, average strike price, average time to expiration, stock volatility. Some of this is available from 10-K filings but not from Alpha Vantage directly. A simpler approximation: estimate SBC as % of revenue and apply a dilution factor.
+
+Note on SBC double-counting: deducting SBC from operating income (future SBC reducing future cash flows) AND subtracting option value from equity (past grants as existing equity claims) is NOT double-counting — they address different time periods. Damodaran is explicit on this point.
 
 #### 8. Tax rate transition: effective to marginal
 
@@ -190,6 +204,23 @@ For companies with large NOL carryforwards (historically Tesla, Uber, etc.): eff
 Also: the tax rate in the WACC cost-of-debt tax shield (`Rd * (1-t)`) should match the tax rate used for that year's operating income. If using 0% tax on income, you can't simultaneously use `(1-0.21)` for the debt shield.
 
 Implementation: add `effective_tax_rate` as a separate assumption; use it for years 1-5, linearly transition to `tax_rate` (marginal) by year 10. Terminal value always uses marginal.
+
+#### 8b. WACC tax rate consistency
+
+**Priority:** LOW-MEDIUM
+**Effort:** Small
+**Files:** `stock_analyzer/dcf.py`
+
+`dcf.py:118`: The debt tax shield uses the fixed marginal rate:
+```python
+debt_weight * self.assumptions.cost_of_debt * (1 - self.assumptions.tax_rate)
+```
+
+When `effective_tax_rate` is set, NOPAT uses a year-specific blended rate (transitioning from effective to marginal), but the WACC debt shield always uses marginal. Damodaran says these must match — you can't tax NOPAT at 5% effective while simultaneously claiming a `(1 - 0.21)` debt shield.
+
+Fix: when `effective_tax_rate` is set, `calculate_wacc()` should accept a year parameter and use `_get_tax_rate_for_year()` for the debt shield. In practice this means WACC varies year by year — which Damodaran does in his more detailed models.
+
+Impact is small for low-leverage investment-grade companies, but material for high-leverage firms with large NOL shields (effective rate near 0% means almost no debt tax benefit in early years).
 
 ---
 
@@ -224,12 +255,14 @@ Options:
 
 `dcf.py:28`: `market_risk_premium: float = 0.05` (static)
 
-Damodaran publishes monthly implied ERP (currently ~4.23% as of Jan 2026). His argument: historical ERP is backward-looking, noisy, and moves counterintuitively (falls during crises when risk is highest).
+Damodaran publishes monthly implied ERP. His January 2026 estimate: **4.23%** (over T-bond at 4.18%), with expected return on stocks of 8.41%. Our default of 5.0% is 77bps above his current estimate — this overstates cost of equity by ~0.7-0.8% for a beta-1 stock, which depresses fair value.
+
+His argument: historical ERP is backward-looking, noisy, and moves counterintuitively (falls during crises when risk is highest, which makes no economic sense). He published "ERP: The 2026 Edition" (March 2026, SSRN) with updated methodology.
 
 Options:
 - **Minimal:** Update the default to 4.5% (closer to his recent estimates)
 - **Better:** Add a note in calibrate when the assumption looks stale
-- **Best:** Fetch his latest implied ERP spreadsheet
+- **Best:** Fetch his latest implied ERP spreadsheet from `pages.stern.nyu.edu/~adamodar/pc/datasets/histimpl.xls`
 
 #### 11. Synthetic credit rating for cost of debt
 
@@ -245,6 +278,30 @@ This is already a known issue (see `docs/internal/feedback/invest-2026-04-04.md`
 2. Map to synthetic credit rating (he publishes the lookup table)
 3. Map rating to default spread
 4. Cost of debt = Risk-free rate + Default spread
+
+**Lookup table (large non-financial firms, January 2026):**
+
+| Coverage Ratio | Rating | Default Spread |
+|---|---|---|
+| > 8.50 | Aaa/AAA | 0.40% |
+| 6.50 – 8.50 | Aa2/AA | 0.55% |
+| 5.50 – 6.50 | A1/A+ | 0.70% |
+| 4.25 – 5.50 | A2/A | 0.78% |
+| 3.00 – 4.25 | A3/A- | 0.89% |
+| 2.50 – 3.00 | Baa2/BBB | 1.11% |
+| 2.25 – 2.50 | Ba1/BB+ | 1.38% |
+| 2.00 – 2.25 | Ba2/BB | 1.84% |
+| 1.75 – 2.00 | B1/B+ | 2.75% |
+| 1.50 – 1.75 | B2/B | 3.21% |
+| 1.25 – 1.50 | B3/B- | 5.09% |
+| 0.80 – 1.25 | Caa/CCC | 8.85% |
+| 0.65 – 0.80 | Ca2/CC | 12.61% |
+| 0.20 – 0.65 | C2/C | 16.00% |
+| < 0.20 | D2/D | 19.00% |
+
+Source: `pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ratings.html` (separate tables exist for small-cap and financial services firms).
+
+GOOGL example: interest coverage > 8.5x → AAA → 0.40% spread → cost of debt = 4.5% + 0.4% = 4.9%. Far more reasonable than the 0.3% from interest expense / total debt (which reflects blended coupon on legacy low-rate debt).
 
 This would fix the GOOGL problem structurally rather than with a heuristic.
 
@@ -262,6 +319,32 @@ Damodaran's approach: normalize earnings using either (a) average margins over a
 
 The calibrate skill could detect cyclicality from revenue/margin volatility in the financial data and suggest normalized margins when the current year appears to be peak or trough.
 
+#### 12b. Value decomposition (assets in place vs growth)
+
+**Priority:** LOW-MEDIUM
+**Effort:** Small
+**Files:** `skills/value/SKILL.md`, `stock_analyzer/dcf.py`
+
+Damodaran decomposes value into:
+- **Value of assets in place:** `NOPAT / WACC` — what the company is worth with zero growth, earning current returns forever
+- **Value of growth:** `Total Value - Value of Assets in Place`
+
+If 80% of value comes from growth, every growth assumption is load-bearing. If ROIC = WACC, value of growth is zero regardless of growth rate. If ROIC < WACC, value of growth is negative.
+
+This is a powerful one-liner sanity check for the value skill: "At your assumptions, X% of value comes from growth. The market attributes Y%." No model changes needed — just compute and display.
+
+#### 12c. Implied revenue / TAM sanity check
+
+**Priority:** LOW-MEDIUM
+**Effort:** Small
+**Files:** `skills/calibrate/SKILL.md` or `skills/value/SKILL.md`
+
+Year-10 revenue from the DCF implies a certain market size. For MSFT at 15% growth, year-10 revenue ≈ $1.1T. Damodaran warns against growth assumptions that require implausible market share — a $500B revenue company growing at 15% needs $75B in new revenue per year.
+
+Not a gate — just a display: "Your assumptions imply $XXB revenue by year 10. Consider whether this is plausible relative to the total addressable market."
+
+Growth declines as companies scale. A 10x increase in revenue is feasible for a $2M company but not for a $2B company. The calibrate skill doesn't currently check this.
+
 ---
 
 ### Phase 3: Structural adjustments
@@ -274,14 +357,40 @@ Higher effort, most impactful for specific company types.
 **Effort:** Medium
 **Files:** `stock_analyzer/metrics.py`, `stock_analyzer/dcf.py`
 
-Damodaran treats R&D as capital expenditure:
-- Remove R&D from operating expenses (operating income goes up)
-- Add amortization of capitalized R&D back (partially offsets)
-- Add unamortized R&D to invested capital (affects ROIC and S/C)
+Damodaran treats R&D as capital expenditure. Full methodology:
+
+**Step 1 — Create the Research Asset:**
+Sum unamortized R&D over the amortizable life. If amortizable life = 5 years:
+```
+Research Asset = R&D_year1 * (4/5) + R&D_year2 * (3/5) + R&D_year3 * (2/5) + R&D_year4 * (1/5)
+```
+(Current year's R&D is fully unamortized, prior years decay linearly)
+
+**Step 2 — Adjust Operating Income:**
+- Add back current year's R&D expense (removing it from operating expenses)
+- Subtract amortization of the research asset
+- Net effect: Operating Income increases if R&D is growing (current R&D > amortization of past R&D)
+
+**Step 3 — Adjust Invested Capital:**
+- Add the Research Asset to book equity and invested capital
+
+**Step 4 — Recalculate ROIC:**
+- `Adjusted ROIC = Adjusted NOPAT / Adjusted Invested Capital`
+- For high-ROIC firms with growing R&D, adjusted ROIC is typically *lower* (invested capital increases by more than NOPAT)
+
+**Tax treatment:** R&D remains fully tax-deductible in the year incurred (per US tax code), even though it's capitalized for valuation purposes. This creates a tax benefit that must be captured.
+
+**Impact on FCF:** None — the reclassification doesn't change free cash flows. What it changes: ROIC, reinvestment rate, implied growth rate, and internal consistency.
+
+**Amortizable life by industry:**
+- Pharmaceutical: 10+ years (FDA approval timeline)
+- Aerospace/Defense: 10 years
+- Technology/Software: 3-5 years
+- Product-specific R&D: until commercialization or abandonment
 
 For tech companies this is a 10-20% swing in operating income and significantly changes ROIC. Without this adjustment, ROIC is understated for R&D-heavy companies, which distorts the terminal value reinvestment calculation and fundamental growth check.
 
-Requires: R&D expense from income statement (Alpha Vantage provides `researchAndDevelopment`), assumption about amortization period (Damodaran typically uses 3-5 years for tech).
+Requires: R&D expense from income statement (Alpha Vantage provides `researchAndDevelopment`), assumption about amortization period.
 
 #### 14. Industry base rate comparisons
 
@@ -368,12 +477,15 @@ Damodaran sometimes transitions beta -> 1.0 and D/E -> industry average during t
 | 4 | Value-of-growth check (ROIC vs WACC) | 1 | MEDIUM | **DONE** | `75a5321` — Added to calibrate coherence check with #1 |
 | 5 | Reverse DCF negative growth | 1 | MEDIUM | **DONE** | `07c90e9` — Search bounds [-10%, 50%] |
 | 6 | Sensitivity table negative growth | 1 | LOW-MEDIUM | **DONE** | `07c90e9` — Removed >= 0 filter |
-| 7 | Equity bridge (options, preferred, minority) | 1 | HIGH | TODO | |
+| 7 | Equity bridge (options, preferred, minority, cross-holdings) | 1 | HIGH | TODO | |
 | 8 | Tax rate transition (effective -> marginal) | 1 | MEDIUM-HIGH | **DONE** | `b235a96` — effective_tax_rate transitions to marginal over projection period |
+| 8b | WACC tax rate consistency | 1 | LOW-MEDIUM | TODO | Debt tax shield uses fixed marginal rate even when effective_tax_rate is active |
 | 9 | Bottom-up beta | 2 | MEDIUM-HIGH | TODO | |
-| 10 | Implied ERP | 2 | MEDIUM | TODO | |
-| 11 | Synthetic credit rating (cost of debt) | 2 | MEDIUM | TODO | Addresses known GOOGL issue (see feedback/invest-2026-04-04.md) |
+| 10 | Implied ERP | 2 | MEDIUM | TODO | Current default 5.0% vs Damodaran's Jan 2026 implied 4.23% |
+| 11 | Synthetic credit rating (cost of debt) | 2 | MEDIUM | TODO | Addresses known GOOGL issue; Jan 2026 lookup table added |
 | 12 | Cyclical earnings normalization | 2 | MEDIUM | TODO | |
+| 12b | Value decomposition (assets in place vs growth) | 2 | LOW-MEDIUM | TODO | Sanity check: what % of value comes from growth? |
+| 12c | Implied revenue / TAM check | 2 | LOW-MEDIUM | TODO | Sanity check: is year-10 revenue plausible? |
 | 13 | R&D capitalization | 3 | MEDIUM-HIGH | TODO | |
 | 14 | Industry base rate comparisons | 3 | MEDIUM | TODO | |
 | 15 | Financial services warning | 3 | MEDIUM | TODO | |
@@ -395,15 +507,18 @@ Damodaran sometimes transitions beta -> 1.0 and D/E -> industry average during t
 - Item 8 (`b235a96`): Tax rate transitions from effective to marginal over projection period. Terminal value always uses marginal.
 
 **Remaining:**
-- **Item 7 (equity bridge):** Subtract preferred stock, minority interests from equity value. Options dilution is the hard part — requires data beyond Alpha Vantage (options outstanding, strike prices). Preferred stock and minority interests are available from Alpha Vantage balance sheet data. Suggested approach: start with preferred + minority (available data), defer options to a dilution estimate or skip with a documented limitation.
+- **Item 7 (equity bridge):** Subtract preferred stock, minority interests from equity value. Add cross-holdings and non-operating assets. Distinguish operating from excess cash. Options dilution is the hard part — requires data beyond Alpha Vantage (options outstanding, strike prices). Preferred stock and minority interests are available from Alpha Vantage balance sheet data. Suggested approach: start with preferred + minority (available data), defer options to a dilution estimate or skip with a documented limitation.
+- **Item 8b (WACC tax consistency):** Small fix — `calculate_wacc()` should use year-specific tax rate for debt shield when `effective_tax_rate` is set. Low impact for typical companies but technically inconsistent.
 
 ### Phase 2 — Better inputs (items 9-12)
 
 Not started. These improve assumption quality without changing model structure.
-- **#11 (synthetic credit rating)** is the highest priority in this phase — it addresses the known GOOGL cost-of-debt issue (see `docs/internal/feedback/invest-2026-04-04.md`)
+- **#11 (synthetic credit rating)** is the highest priority in this phase — it addresses the known GOOGL cost-of-debt issue. January 2026 lookup table now documented in the item.
 - **#9 (bottom-up beta)** requires either hardcoding Damodaran's industry beta table or fetching it
-- **#10 (implied ERP)** is a small default update or web lookup
+- **#10 (implied ERP)** is a small default update or web lookup. Current default (5.0%) is 77bps above Damodaran's Jan 2026 implied ERP (4.23%).
 - **#12 (cyclical normalization)** is a calibrate skill change
+- **#12b (value decomposition)** is a simple sanity check display — no model changes
+- **#12c (implied revenue / TAM)** is a calibrate or value sanity check — no model changes
 
 ### Phase 3 — Structural adjustments (items 13-19)
 
@@ -458,10 +573,17 @@ Key Damodaran resources for implementation:
 | Resource | URL | Use |
 |----------|-----|-----|
 | Industry betas | `pages.stern.nyu.edu/~adamodar/pc/datasets/betas.xls` | Bottom-up beta (#9) |
-| Ratings & spreads | `pages.stern.nyu.edu/~adamodar/pc/datasets/ratings.xls` | Synthetic cost of debt (#11) |
+| Ratings & spreads (dataset) | `pages.stern.nyu.edu/~adamodar/pc/datasets/ratings.xls` | Synthetic cost of debt (#11) |
+| Ratings lookup (web table) | `pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ratings.html` | Synthetic cost of debt (#11) — Jan 2026 update |
 | Implied ERP | `pages.stern.nyu.edu/~adamodar/pc/datasets/histimpl.xls` | Implied ERP (#10) |
 | Sales-to-capital by industry | `pages.stern.nyu.edu/~adamodar/pc/datasets/capex.xls` | Industry base rates (#14) |
+| Margins & ROIC by sector | `pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/mgnroc.html` | Industry base rates (#14) |
 | Margins by industry | `pages.stern.nyu.edu/~adamodar/pc/datasets/margin.xls` | Industry base rates (#14) |
 | Country risk premiums | `pages.stern.nyu.edu/~adamodar/pc/datasets/ctryprem.xlsx` | Country risk (#18) |
 | FCFF valuation template | `pages.stern.nyu.edu/~adamodar/pc/fcffsimpleginzu.xlsx` | Reference implementation |
 | WACC calculator | `pages.stern.nyu.edu/~adamodar/pc/wacccalc.xls` | Reference implementation |
+| ERP 2026 paper (SSRN) | `papers.ssrn.com/sol3/papers.cfm?abstract_id=6361419` | ERP methodology reference |
+| Return on capital measures | `pages.stern.nyu.edu/~adamodar/pdfiles/papers/returnmeasures.pdf` | ROIC methodology |
+| R&D capitalization guide | `pages.stern.nyu.edu/~adamodar/New_Home_Page/valquestions/R&D.htm` | R&D capitalization (#13) |
+| Equity value per share | `pages.stern.nyu.edu/~adamodar/New_Home_Page/littlebook/valuepershare.htm` | Equity bridge (#7) |
+| SBC & employee options | `aswathdamodaran.substack.com/p/share-count-confusion-dilution-employee-18-07-26` | Options treatment (#7) |

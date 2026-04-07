@@ -114,6 +114,10 @@ data/MSFT/
   analysis_2026-04-03.md       # investment report
 ```
 
+## DCF methodology
+
+The valuation model follows Aswath Damodaran's (NYU Stern) framework — FCFF discounted at WACC, with reinvestment derived from the Sales-to-Capital ratio, terminal value using g/ROIC reinvestment, and tax rates transitioning from effective to marginal. See [docs/dcf-methodology.md](docs/dcf-methodology.md) for the full approach, formulas, and rationale behind each design choice.
+
 ## API limits
 
 Alpha Vantage free tier: 25 requests/day, 5/minute. A full fetch uses 6 API calls (~8 seconds with built-in rate limiting). Everything after fetch reuses cached data.
