@@ -411,14 +411,16 @@ class DCFModel:
 
         # Calculate sales-to-capital ratio
         # Sales-to-Capital = Revenue / Invested Capital
-        # Where Invested Capital = Equity + Debt - Cash
+        # Where Invested Capital = Equity + Debt - Cash - Non-operating Investments
         if self.assumptions.sales_to_capital_ratio is not None:
             sales_to_capital = self.assumptions.sales_to_capital_ratio
         else:
             # Calculate invested capital from balance sheet
             equity = financial_data.get('equity', market_cap)  # Book value of equity
             cash = financial_data.get('cash', 0)
-            invested_capital = equity + total_debt - cash
+            sti = financial_data.get('short_term_investments', 0)
+            lti = financial_data.get('long_term_investments', 0)
+            invested_capital = equity + total_debt - cash - sti - lti
 
             # Calculate sales-to-capital ratio
             if invested_capital > 0:

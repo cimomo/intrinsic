@@ -120,6 +120,20 @@ class TestCalculateDCFInputs:
         assert inputs['short_term_investments'] == 0
         assert inputs['long_term_investments'] == 0
 
+    def test_invested_capital_excludes_investments(self):
+        """Invested capital subtracts cash, STI, and LTI (non-operating assets)"""
+        income = [{'totalRevenue': '100000', 'operatingIncome': '30000'}]
+        balance = [{
+            'totalShareholderEquity': '200000',
+            'shortLongTermDebtTotal': '50000',
+            'cashAndCashEquivalentsAtCarryingValue': '20000',
+            'shortTermInvestments': '40000',
+            'longTermInvestments': '10000',
+        }]
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, [{}], {})
+        # Invested Capital = 200K + 50K - 20K - 40K - 10K = 180K
+        assert inputs['invested_capital'] == 180_000
+
     def test_capex_always_positive(self):
         cashflow = [{'capitalExpenditures': '-5000'}]
         inputs = FinancialMetrics.calculate_dcf_inputs([{}], [{}], cashflow, {})
@@ -133,19 +147,19 @@ class TestCalculateDCFInputs:
         income[0]['incomeBeforeTax'] = '120000000000'
         inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, cashflow, overview)
         # NOPAT = 120B * (1 - 0.20) = 96B
-        # Invested Capital = 200B + 100B - 60B = 240B
-        # ROIC = 96B / 240B = 0.40
-        assert inputs['roic'] == pytest.approx(0.40)
-        assert inputs['invested_capital'] == 240_000_000_000
+        # Invested Capital = 200B + 100B - 60B - 50B - 15B = 175B
+        # ROIC = 96B / 175B ≈ 0.5486
+        assert inputs['roic'] == pytest.approx(96e9 / 175e9)
+        assert inputs['invested_capital'] == 175_000_000_000
 
     def test_roic_defaults_to_marginal_tax_when_no_tax_data(self, full_statements):
         """Falls back to 21% marginal rate when tax data missing"""
         income, balance, cashflow, overview = full_statements
         inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, cashflow, overview)
         # NOPAT = 120B * (1 - 0.21) = 94.8B
-        # Invested Capital = 200B + 100B - 60B = 240B
-        # ROIC = 94.8B / 240B = 0.395
-        assert inputs['roic'] == pytest.approx(0.395)
+        # Invested Capital = 200B + 100B - 60B - 50B - 15B = 175B
+        # ROIC = 94.8B / 175B ≈ 0.5417
+        assert inputs['roic'] == pytest.approx(94.8e9 / 175e9)
 
     def test_roic_negative_operating_income(self):
         """Negative operating income produces negative ROIC"""

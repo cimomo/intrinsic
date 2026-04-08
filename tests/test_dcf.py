@@ -610,7 +610,9 @@ class TestCalculateFairValue:
         equity = sample_financial_data['equity']
         debt = sample_financial_data['total_debt']
         cash = sample_financial_data['cash']
-        expected = sample_financial_data['revenue'] / (equity + debt - cash)
+        sti = sample_financial_data.get('short_term_investments', 0)
+        lti = sample_financial_data.get('long_term_investments', 0)
+        expected = sample_financial_data['revenue'] / (equity + debt - cash - sti - lti)
         assert r['sales_to_capital'] == pytest.approx(expected)
 
     def test_explicit_terminal_roic(self, sample_financial_data):
@@ -848,14 +850,15 @@ class TestGetSummary:
 class TestEquityBridge:
     def test_investments_increase_fair_value(self, sample_financial_data):
         """Short-term and long-term investments should increase equity value"""
-        model = DCFModel()
+        # Pin S/C ratio to isolate the bridge effect from the invested capital effect
+        model = DCFModel(DCFAssumptions(sales_to_capital_ratio=2.0))
         r_no_inv = model.calculate_fair_value(sample_financial_data, 10e9, 100.0)
 
         data_with_inv = {**sample_financial_data, 'short_term_investments': 50e9, 'long_term_investments': 15e9}
-        model2 = DCFModel()
+        model2 = DCFModel(DCFAssumptions(sales_to_capital_ratio=2.0))
         r_with_inv = model2.calculate_fair_value(data_with_inv, 10e9, 100.0)
 
-        # Same enterprise value, but more cash & investments → higher equity value
+        # With S/C pinned, enterprise value is the same — only the bridge differs
         assert r_with_inv['enterprise_value'] == pytest.approx(r_no_inv['enterprise_value'])
         assert r_with_inv['equity_value'] > r_no_inv['equity_value']
         assert r_with_inv['fair_value'] > r_no_inv['fair_value']
@@ -867,11 +870,12 @@ class TestEquityBridge:
             'cash': 10e9, 'short_term_investments': 0, 'long_term_investments': 0,
             'equity': 80e9, 'market_cap': 200e9, 'beta': 1.0,
         }
-        model1 = DCFModel()
+        # Pin S/C ratio so investments only affect the bridge, not reinvestment
+        model1 = DCFModel(DCFAssumptions(sales_to_capital_ratio=2.0))
         r1 = model1.calculate_fair_value(data, 10e9, 100.0)
 
         data_inv = {**data, 'short_term_investments': 40e9}
-        model2 = DCFModel()
+        model2 = DCFModel(DCFAssumptions(sales_to_capital_ratio=2.0))
         r2 = model2.calculate_fair_value(data_inv, 10e9, 100.0)
 
         # $40B more investments / 10B shares = $4.00/share more

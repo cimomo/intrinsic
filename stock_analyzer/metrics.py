@@ -159,7 +159,7 @@ class FinancialMetrics:
         if pre_tax_income > 0 and tax_expense >= 0:
             tax_rate = tax_expense / pre_tax_income
 
-        invested_capital = equity + total_debt - cash
+        invested_capital = equity + total_debt - cash - short_term_investments - long_term_investments
         roic = None
         if invested_capital > 0:
             nopat = operating_income * (1 - tax_rate)
