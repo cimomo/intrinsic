@@ -65,7 +65,7 @@ Reinvestment = ΔRevenue / Sales-to-Capital Ratio
 FCF = NOPAT - Reinvestment
 ```
 
-The S/C ratio tells you how many dollars of revenue a company generates per dollar of invested capital (where Invested Capital = Equity + Total Debt - Cash). A ratio of 2.0 is capital-light — $2 of revenue per $1 of capital. A ratio of 0.5 is capital-heavy — $1 of capital needed for every $0.50 of new revenue.
+The S/C ratio tells you how many dollars of revenue a company generates per dollar of invested capital (where Invested Capital = Equity + Debt - Cash - Investments). A ratio of 2.0 is capital-light — $2 of revenue per $1 of capital. A ratio of 0.5 is capital-heavy — $1 of capital needed for every $0.50 of new revenue.
 
 **Why S/C instead of CapEx?** Three reasons:
 
@@ -124,7 +124,7 @@ Return on Invested Capital determines whether growth creates or destroys value �
 
 ```
 ROIC = NOPAT / Invested Capital
-     = Operating Income × (1 - Tax Rate) / (Equity + Debt - Cash)
+     = Operating Income × (1 - Tax Rate) / (Equity + Debt - Cash - Investments)
 ```
 
 A company earning ROIC above its cost of capital creates value with every dollar reinvested. A company earning below its cost of capital destroys value — growing faster makes the stock *less* valuable, not more.

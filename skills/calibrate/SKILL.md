@@ -113,7 +113,7 @@ Go through these in order:
 
 **c. Sales-to-Capital Ratio**
 - **Always calculate 5+ years of historical data before recommending.** Compute both:
-  - **Average S/C** = Revenue / Invested Capital (where Invested Capital = Equity + LT Debt - Cash)
+  - **Average S/C** = Revenue / Invested Capital (where Invested Capital = Equity + Debt - Cash - Investments)
   - **Incremental S/C** = ΔRevenue / ΔInvested Capital (year-over-year — this is what the DCF model actually uses)
 - Use web sources if Alpha Vantage doesn't have enough history
 - Present the full historical table to the user before asking for a value
