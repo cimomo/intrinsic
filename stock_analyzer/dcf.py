@@ -360,6 +360,8 @@ class DCFModel:
                 - operating_income: Operating income
                 - total_debt: Total debt
                 - cash: Cash and cash equivalents
+                - short_term_investments: Short-term marketable securities (optional)
+                - long_term_investments: Long-term investments (optional)
                 - equity: Book value of equity (optional, uses market_cap if not provided)
                 - market_cap: Market capitalization
                 - beta: Stock beta (optional, defaults to 1.0)
@@ -472,10 +474,12 @@ class DCFModel:
         # Enterprise value = PV of FCFs + PV of Terminal Value
         enterprise_value = pv_fcf + pv_terminal_value
 
-        # Equity value = Enterprise Value - Net Debt
+        # Equity bridge: Enterprise Value + Cash & Investments - Debt
         cash = financial_data.get('cash', 0)
-        net_debt = total_debt - cash
-        equity_value = enterprise_value - net_debt
+        short_term_investments = financial_data.get('short_term_investments', 0)
+        long_term_investments = financial_data.get('long_term_investments', 0)
+        cash_and_investments = cash + short_term_investments + long_term_investments
+        equity_value = enterprise_value + cash_and_investments - total_debt
 
         # Fair value per share
         fair_value_per_share = equity_value / shares_outstanding if shares_outstanding > 0 else 0
@@ -512,7 +516,10 @@ class DCFModel:
                 'debt_to_equity': debt_to_equity,
                 'shares_outstanding': shares_outstanding,
                 'base_revenue': revenue,
-                'net_debt': net_debt,
+                'cash': cash,
+                'short_term_investments': short_term_investments,
+                'long_term_investments': long_term_investments,
+                'total_debt': total_debt,
                 'final_year_revenue': final_year_revenue,
             })
 
@@ -754,8 +761,19 @@ class DCFModel:
         summary += f"  PV of Terminal Value:     ${r['pv_terminal_value']/1e9:,.2f}B  ({pv_terminal_pct:.1f}% of EV)\n"
         summary += f"  Enterprise Value:         ${r['enterprise_value']/1e9:,.2f}B\n"
 
-        if 'net_debt' in r:
-            summary += f"  Less: Net Debt:           ${r['net_debt']/1e9:,.2f}B\n"
+        # Equity bridge
+        if 'cash' in r:
+            cash = r['cash']
+            sti = r.get('short_term_investments', 0)
+            lti = r.get('long_term_investments', 0)
+            debt = r.get('total_debt', 0)
+            summary += f"\n  EQUITY BRIDGE:\n"
+            summary += f"    + Cash & Equivalents:     ${cash/1e9:,.2f}B\n"
+            if sti > 0:
+                summary += f"    + Short-Term Investments: ${sti/1e9:,.2f}B\n"
+            if lti > 0:
+                summary += f"    + Long-Term Investments:  ${lti/1e9:,.2f}B\n"
+            summary += f"    - Total Debt:             ${debt/1e9:,.2f}B\n"
 
         summary += f"  Equity Value:             ${r['equity_value']/1e9:,.2f}B\n"
 
@@ -808,7 +826,9 @@ class DCFModel:
         )
         wacc = r['wacc']
         shares = r['shares_outstanding']
-        net_debt = r.get('net_debt', 0)
+        # Compute net debt from bridge components (debt - cash - investments)
+        cash_and_inv = r.get('cash', 0) + r.get('short_term_investments', 0) + r.get('long_term_investments', 0)
+        net_debt = r.get('total_debt', 0) - cash_and_inv
         base_revenue = r['base_revenue']
         sales_to_capital = r.get('sales_to_capital', 1.0)
 

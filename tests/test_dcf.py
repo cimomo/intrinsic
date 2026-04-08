@@ -31,6 +31,8 @@ def sample_financial_data():
         'operating_income': 120_000_000_000,
         'total_debt': 100_000_000_000,
         'cash': 60_000_000_000,
+        'short_term_investments': 0,
+        'long_term_investments': 0,
         'equity': 200_000_000_000,
         'market_cap': 2_500_000_000_000,
         'beta': 1.2,
@@ -636,6 +638,9 @@ class TestCalculateFairValue:
         )
         model = DCFModel(assumptions)
         r = model.calculate_fair_value(sample_financial_data, 10e9, 100.0, verbose=True)
+        # Compute net_debt from bridge components
+        cash_and_inv = r['cash'] + r.get('short_term_investments', 0) + r.get('long_term_investments', 0)
+        net_debt = r['total_debt'] - cash_and_inv
         # _recalc_fair_value with same growth and margin should match
         target_margin = assumptions.target_operating_margin or r['operating_margin']
         recalc_fv = model._recalc_fair_value(
@@ -645,7 +650,7 @@ class TestCalculateFairValue:
             sales_to_capital=r['sales_to_capital'],
             base_revenue=r['base_revenue'],
             shares=r['shares_outstanding'],
-            net_debt=r['net_debt'],
+            net_debt=net_debt,
         )
         assert recalc_fv == pytest.approx(r['fair_value'], rel=1e-6)
 
@@ -663,6 +668,9 @@ class TestCalculateFairValue:
         r = model.calculate_fair_value(sample_financial_data, 10e9, 100.0, verbose=True)
         # wacc_per_year should vary (effective != marginal)
         assert r['wacc_per_year'][0] != pytest.approx(r['wacc_per_year'][-1])
+        # Compute net_debt from bridge components
+        cash_and_inv = r['cash'] + r.get('short_term_investments', 0) + r.get('long_term_investments', 0)
+        net_debt = r['total_debt'] - cash_and_inv
         # _recalc_fair_value should match
         target_margin = assumptions.target_operating_margin or r['operating_margin']
         recalc_fv = model._recalc_fair_value(
@@ -672,7 +680,7 @@ class TestCalculateFairValue:
             sales_to_capital=r['sales_to_capital'],
             base_revenue=r['base_revenue'],
             shares=r['shares_outstanding'],
-            net_debt=r['net_debt'],
+            net_debt=net_debt,
         )
         assert recalc_fv == pytest.approx(r['fair_value'], rel=1e-6)
 
@@ -833,3 +841,100 @@ class TestGetSummary:
 
         model.results['upside_percent'] = -25
         assert "STRONG SELL" in model.get_summary()
+
+
+# --- Equity Bridge ---
+
+class TestEquityBridge:
+    def test_investments_increase_fair_value(self, sample_financial_data):
+        """Short-term and long-term investments should increase equity value"""
+        model = DCFModel()
+        r_no_inv = model.calculate_fair_value(sample_financial_data, 10e9, 100.0)
+
+        data_with_inv = {**sample_financial_data, 'short_term_investments': 50e9, 'long_term_investments': 15e9}
+        model2 = DCFModel()
+        r_with_inv = model2.calculate_fair_value(data_with_inv, 10e9, 100.0)
+
+        # Same enterprise value, but more cash & investments → higher equity value
+        assert r_with_inv['enterprise_value'] == pytest.approx(r_no_inv['enterprise_value'])
+        assert r_with_inv['equity_value'] > r_no_inv['equity_value']
+        assert r_with_inv['fair_value'] > r_no_inv['fair_value']
+
+    def test_investment_per_share_impact(self):
+        """Each dollar of investments adds exactly one dollar to equity value"""
+        data = {
+            'revenue': 100e9, 'operating_income': 30e9, 'total_debt': 50e9,
+            'cash': 10e9, 'short_term_investments': 0, 'long_term_investments': 0,
+            'equity': 80e9, 'market_cap': 200e9, 'beta': 1.0,
+        }
+        model1 = DCFModel()
+        r1 = model1.calculate_fair_value(data, 10e9, 100.0)
+
+        data_inv = {**data, 'short_term_investments': 40e9}
+        model2 = DCFModel()
+        r2 = model2.calculate_fair_value(data_inv, 10e9, 100.0)
+
+        # $40B more investments / 10B shares = $4.00/share more
+        assert r2['fair_value'] - r1['fair_value'] == pytest.approx(4.0)
+
+    def test_missing_investments_default_to_zero(self):
+        """When investments fields are absent, they default to zero (backward compat)"""
+        data = {
+            'revenue': 100e9, 'operating_income': 30e9, 'total_debt': 50e9,
+            'cash': 10e9, 'equity': 80e9, 'market_cap': 200e9, 'beta': 1.0,
+        }
+        model = DCFModel()
+        r = model.calculate_fair_value(data, 10e9, 100.0)
+        # Should not crash, and equity bridge uses only cash
+        assert r['fair_value'] > 0
+        assert r['equity_value'] == pytest.approx(r['enterprise_value'] + 10e9 - 50e9)
+
+    def test_verbose_results_include_bridge_components(self, sample_financial_data):
+        """Verbose results should include all bridge components"""
+        data = {**sample_financial_data, 'short_term_investments': 50e9, 'long_term_investments': 15e9}
+        model = DCFModel()
+        r = model.calculate_fair_value(data, 10e9, 100.0, verbose=True)
+        assert r['cash'] == 60e9
+        assert r['short_term_investments'] == 50e9
+        assert r['long_term_investments'] == 15e9
+        assert r['total_debt'] == 100e9
+
+    def test_summary_shows_equity_bridge(self, sample_financial_data):
+        """Summary should display the equity bridge with line items"""
+        data = {**sample_financial_data, 'short_term_investments': 50e9, 'long_term_investments': 15e9}
+        model = DCFModel()
+        model.calculate_fair_value(data, 10e9, 100.0, verbose=True)
+        summary = model.get_summary()
+        assert "EQUITY BRIDGE" in summary
+        assert "Cash & Equivalents" in summary
+        assert "Short-Term Investments" in summary
+        assert "Long-Term Investments" in summary
+        assert "Total Debt" in summary
+
+    def test_net_cash_company(self):
+        """Company with more cash+investments than debt should have equity > EV"""
+        data = {
+            'revenue': 100e9, 'operating_income': 30e9, 'total_debt': 10e9,
+            'cash': 20e9, 'short_term_investments': 50e9, 'long_term_investments': 10e9,
+            'equity': 80e9, 'market_cap': 200e9, 'beta': 1.0,
+        }
+        model = DCFModel()
+        r = model.calculate_fair_value(data, 10e9, 100.0)
+        # Cash + investments - debt = 20B + 50B + 10B - 10B = 70B net cash
+        assert r['equity_value'] > r['enterprise_value']
+
+    def test_sensitivity_table_uses_full_bridge(self, sample_financial_data):
+        """Sensitivity table should account for investments in net debt"""
+        data = {**sample_financial_data, 'short_term_investments': 50e9, 'long_term_investments': 15e9}
+        assumptions = DCFAssumptions(sales_to_capital_ratio=2.0)
+        model = DCFModel(assumptions)
+        r = model.calculate_fair_value(data, 10e9, 100.0, verbose=True)
+        # The base case in sensitivity table should match the main fair value
+        summary = model.get_summary()
+        # Check that the bracketed base case value in the sensitivity table
+        # approximately matches the computed fair value
+        import re
+        match = re.search(r'\[\$([0-9,]+)\]', summary)
+        assert match is not None
+        base_case_from_table = float(match.group(1).replace(',', ''))
+        assert base_case_from_table == pytest.approx(r['fair_value'], rel=0.01)

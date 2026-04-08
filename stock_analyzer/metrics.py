@@ -123,6 +123,8 @@ class FinancialMetrics:
             )
 
         cash = safe_float(latest_balance.get('cashAndCashEquivalentsAtCarryingValue'), 0)
+        short_term_investments = safe_float(latest_balance.get('shortTermInvestments'), 0)
+        long_term_investments = safe_float(latest_balance.get('longTermInvestments'), 0)
         total_assets = safe_float(latest_balance.get('totalAssets'), 0)
         equity = safe_float(latest_balance.get('totalShareholderEquity'), 0)
 
@@ -168,6 +170,8 @@ class FinancialMetrics:
             'operating_income': operating_income,
             'total_debt': total_debt,
             'cash': cash,
+            'short_term_investments': short_term_investments,
+            'long_term_investments': long_term_investments,
             'equity': equity,
             'market_cap': market_cap,
             'beta': beta,

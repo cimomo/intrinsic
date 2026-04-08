@@ -19,7 +19,8 @@ Revenue (base year)
 
 Sum of discounted FCFs        → present value of operating assets
   + terminal value            → enterprise value
-  - net debt                  → equity value
+  + cash & investments        → }
+  - debt                      → } equity value (see Equity bridge)
   ÷ shares outstanding        → fair value per share
 ```
 
@@ -29,10 +30,10 @@ Reinvestment, terminal value, and the discount rate are where most of the nuance
 
 ## Model variant: FCFF / WACC
 
-We use **Free Cash Flow to the Firm (FCFF)** discounted at **WACC**. This values the entire firm (equity + debt), then subtracts net debt to get equity value. The alternative — Free Cash Flow to Equity (FCFE) discounted at cost of equity — is appropriate for financial services firms where debt is a raw material, not capital. Intrinsic does not currently support FCFE valuation.
+We use **Free Cash Flow to the Firm (FCFF)** discounted at **WACC**. This values the entire firm's operating assets, then applies the equity bridge (add cash and investments, subtract debt) to get equity value. The alternative — Free Cash Flow to Equity (FCFE) discounted at cost of equity — is appropriate for financial services firms where debt is a raw material, not capital. Intrinsic does not currently support FCFE valuation.
 
 ```
-Fair Value = (PV of Projected FCFs + PV of Terminal Value - Net Debt) / Shares Outstanding
+Fair Value = (PV of Projected FCFs + PV of Terminal Value + Cash & Investments - Debt) / Shares Outstanding
 ```
 
 ---
@@ -218,11 +219,17 @@ The calibration process recommends a terminal ROIC based on moat strength: compa
 Enterprise value to equity value per share:
 
 ```
-Equity Value = Enterprise Value - Total Debt + Cash
+Equity Value = Enterprise Value
+             + Cash & Equivalents
+             + Short-Term Investments (Treasuries, corporate bonds, etc.)
+             + Long-Term Investments (equity stakes, long-dated bonds)
+             - Total Debt
 Fair Value = Equity Value / Shares Outstanding
 ```
 
-This is a simplified bridge. A complete equity bridge also subtracts preferred stock, minority interests, employee options value, and unfunded pension obligations; and adds cross-holdings and non-operating assets. For most large-cap companies without significant preferred stock or outstanding options, the simplified bridge is a reasonable approximation. See [Known limitations](#known-limitations).
+Cash and short-term investments are treated as marketable securities added at face value, following Damodaran's default of treating cash as a "neutral asset." Long-term investments are included at book value — these may include a mix of public equity, private company stakes, and long-dated debt instruments.
+
+A complete equity bridge also subtracts preferred stock, minority interests, employee options value, and unfunded pension obligations. These require data beyond what Alpha Vantage provides. For most large-cap companies without significant preferred stock, the current bridge is a reasonable approximation. See [Known limitations](#known-limitations).
 
 ---
 
@@ -290,7 +297,7 @@ All defaults except terminal growth rate (hard cap) and marginal tax rate (statu
 
 The model is a work in progress. These are the most significant simplifications:
 
-**Simplified equity bridge.** The current bridge subtracts net debt but does not account for preferred stock, minority interests, employee stock options, or unfunded pension obligations. For tech companies with large option/RSU programs, this overstates equity value per share. The proper approach values outstanding options separately (using an option pricing model) and subtracts them from equity before dividing by actual shares — not diluted shares.
+**Equity bridge gaps.** The bridge includes cash, short-term investments, and long-term investments but does not subtract preferred stock, minority interests, employee stock options, or unfunded pension obligations. For tech companies with large option/RSU programs, this overstates equity value per share. The proper approach values outstanding options separately (using an option pricing model) and subtracts them from equity before dividing by actual shares — not diluted shares. Long-term investments are included at book value, which may over- or understate the true value of illiquid private company stakes.
 
 **Regression beta.** The more robust approach is bottom-up betas — averaging unlevered betas across comparable firms in the same industry, then relevering for the target company's capital structure. Regression betas are noisy, backward-looking, and distorted by recent price moves that may not reflect business risk. Damodaran publishes unlevered industry betas annually.
 

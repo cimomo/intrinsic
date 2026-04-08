@@ -29,7 +29,7 @@ These are solid. No changes needed.
 
 | Area | Damodaran | Intrinsic | Notes |
 |------|-----------|-----------|-------|
-| FCFF framework | Discount FCFF at WACC, subtract net debt | Same | Core structure is correct |
+| FCFF framework | Discount FCFF at WACC, equity bridge to per-share value | Same | Core structure is correct |
 | Sales-to-capital ratio | His preferred reinvestment measure | Core to the model | `dcf.py` uses S/C exclusively |
 | Terminal growth <= risk-free rate | Hard constraint | Defaults `terminal_growth = risk_free_rate` | `dcf.py:42-43` |
 | Growth tapering | High-growth -> stable transition | Linear taper years 6-10 | Reasonable simplification |
@@ -147,11 +147,16 @@ If a stock's base growth is 2%, the sensitivity table can't show the -2% scenari
 **Effort:** Medium
 **Files:** `stock_analyzer/dcf.py`, `stock_analyzer/metrics.py`
 
-Current bridge (`dcf.py:376-381`):
+Previous bridge (before fix):
 ```python
 net_debt = total_debt - cash
 equity_value = enterprise_value - net_debt
-fair_value_per_share = equity_value / shares_outstanding
+```
+
+Current bridge (after fix):
+```python
+cash_and_investments = cash + short_term_investments + long_term_investments
+equity_value = enterprise_value + cash_and_investments - total_debt
 ```
 
 Damodaran's complete bridge:
@@ -477,7 +482,7 @@ Damodaran sometimes transitions beta -> 1.0 and D/E -> industry average during t
 | 4 | Value-of-growth check (ROIC vs WACC) | 1 | MEDIUM | **DONE** | `75a5321` — Added to calibrate coherence check with #1 |
 | 5 | Reverse DCF negative growth | 1 | MEDIUM | **DONE** | `07c90e9` — Search bounds [-10%, 50%] |
 | 6 | Sensitivity table negative growth | 1 | LOW-MEDIUM | **DONE** | `07c90e9` — Removed >= 0 filter |
-| 7 | Equity bridge (options, preferred, minority, cross-holdings) | 1 | HIGH | TODO | |
+| 7 | Equity bridge (options, preferred, minority, cross-holdings) | 1 | HIGH | **DONE** | Cash + short/long-term investments in bridge; preferred/minority/options as documented limitations |
 | 8 | Tax rate transition (effective -> marginal) | 1 | MEDIUM-HIGH | **DONE** | `b235a96` — effective_tax_rate transitions to marginal over projection period |
 | 8b | WACC tax rate consistency | 1 | LOW-MEDIUM | **DONE** | Year-varying WACC when effective_tax_rate is set + cost_of_capital hurdle rate override |
 | 9 | Bottom-up beta | 2 | MEDIUM-HIGH | TODO | |
@@ -506,9 +511,11 @@ Damodaran sometimes transitions beta -> 1.0 and D/E -> industry average during t
 - Items 5, 6 (`07c90e9`): Negative growth allowed in reverse DCF and sensitivity table
 - Item 8 (`b235a96`): Tax rate transitions from effective to marginal over projection period. Terminal value always uses marginal.
 
-**Remaining:**
-- **Item 7 (equity bridge):** Subtract preferred stock, minority interests from equity value. Add cross-holdings and non-operating assets. Distinguish operating from excess cash. Options dilution is the hard part — requires data beyond Alpha Vantage (options outstanding, strike prices). Preferred stock and minority interests are available from Alpha Vantage balance sheet data. Suggested approach: start with preferred + minority (available data), defer options to a dilution estimate or skip with a documented limitation.
-- **Item 8b (WACC tax consistency):** DONE — `calculate_wacc()` now uses year-specific tax rate for debt shield when `effective_tax_rate` is set. Also added `cost_of_capital` hurdle rate override that bypasses WACC computation entirely.
+**Remaining:** None — Phase 1 complete.
+
+**Recently completed:**
+- **Item 7 (equity bridge):** Equity bridge now includes cash, short-term investments (Treasuries, corporate bonds — verified from MSFT/NVDA 10-K filings), and long-term investments (mix of public equity, private stakes, long-dated bonds). All three are added back in `calculate_fair_value()`, with the full bridge displayed as separate line items in `get_summary()`. Impact: +$10.60/share for MSFT, +$3.04/share for NVDA. **Known limitations:** Alpha Vantage doesn't provide preferred stock or minority interest fields — both are zero for MSFT/NVDA but would matter for companies like Berkshire. Employee options require 10-K data (strike prices, counts) beyond our data source; SBC is already deducted from GAAP operating income (future dilution), but existing option overhang is not valued.
+- **Item 8b (WACC tax consistency):** `calculate_wacc()` now uses year-specific tax rate for debt shield when `effective_tax_rate` is set. Also added `cost_of_capital` hurdle rate override that bypasses WACC computation entirely.
 
 ### Phase 2 — Better inputs (items 9-12)
 
@@ -526,12 +533,14 @@ Not started. Higher effort, most impactful for specific company types.
 
 ### Test count
 
-175 tests as of `81ab5cb`. Key additions:
+194 tests. Key additions:
 - 9 ROIC tests (metrics.py edge cases)
 - 10 terminal value tests (g/ROIC reinvestment, terminal ROIC default/override/guards)
 - 4 tax rate transition tests (interpolation, convergence, terminal uses marginal)
 - 2 negative growth tests (reverse DCF, sensitivity table)
 - 2 integration tests (explicit terminal ROIC, _recalc consistency)
+- 5 WACC tax consistency tests + 6 cost of capital override tests
+- 7 equity bridge tests (investments increase fair value, per-share impact, backward compat, bridge components in results/summary, net cash company, sensitivity table consistency)
 
 ---
 

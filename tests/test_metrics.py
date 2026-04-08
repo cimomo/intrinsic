@@ -55,6 +55,8 @@ class TestCalculateDCFInputs:
             {
                 'shortLongTermDebtTotal': '100000000000',
                 'cashAndCashEquivalentsAtCarryingValue': '60000000000',
+                'shortTermInvestments': '50000000000',
+                'longTermInvestments': '15000000000',
                 'totalAssets': '350000000000',
                 'totalShareholderEquity': '200000000000',
                 'totalCurrentAssets': '140000000000',
@@ -102,6 +104,21 @@ class TestCalculateDCFInputs:
         inputs = FinancialMetrics.calculate_dcf_inputs([], [], [], {})
         assert inputs['revenue'] == 0
         assert inputs['market_cap'] == 0
+
+    def test_extracts_investments(self, full_statements):
+        """Short-term and long-term investments are extracted from balance sheet"""
+        income, balance, cashflow, overview = full_statements
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, cashflow, overview)
+        assert inputs['short_term_investments'] == 50_000_000_000
+        assert inputs['long_term_investments'] == 15_000_000_000
+
+    def test_investments_default_to_zero(self):
+        """When investment fields are absent, they default to zero"""
+        income = [{'totalRevenue': '100'}]
+        balance = [{'cashAndCashEquivalentsAtCarryingValue': '10'}]
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, [{}], {})
+        assert inputs['short_term_investments'] == 0
+        assert inputs['long_term_investments'] == 0
 
     def test_capex_always_positive(self):
         cashflow = [{'capitalExpenditures': '-5000'}]

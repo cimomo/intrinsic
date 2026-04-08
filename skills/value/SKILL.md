@@ -61,7 +61,7 @@ PYTHONPATH="${CLAUDE_PLUGIN_ROOT:-.}" python3 -c "from stock_analyzer import ...
   - Year-by-year FCF projections showing: Year, Phase, Growth Rate, Margin (if converging), Revenue, NOPAT, Reinvestment, FCF, PV Factor, and PV of FCF
   - **If target margin < current margin** (margins converging downward), call this out explicitly: "Note: margins converge downward from current X% to target Y%, reflecting [reason from research, e.g., expected depreciation headwind]." Downward convergence is unusual and easy to miss in the projection table.
   - Terminal value calculation breakdown
-  - Valuation summary: PV of FCFs, PV of terminal value, enterprise value, net debt, equity value
+  - Valuation summary: PV of FCFs, PV of terminal value, enterprise value, equity bridge (cash, investments, debt), equity value
   - Fair value per share vs current price with upside/downside percentage
   - Sensitivity analysis table (growth rate vs operating margin)
   - Investment recommendation — factor in research confidence if research was loaded in step 1:
