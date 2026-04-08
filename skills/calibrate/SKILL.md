@@ -17,23 +17,26 @@ PYTHONPATH="${CLAUDE_PLUGIN_ROOT:-.}" python3 -c "from stock_analyzer import ...
 
 Assumptions are split into three tiers based on how much attention they need:
 
-**Core assumptions** — company-specific, change with new data, worth deliberating. Research context matters here.
-- Revenue Growth Rate (Years 1-5)
-- Operating Margin / Target Operating Margin
-- Sales-to-Capital Ratio
-- Terminal ROIC (how much competitive advantage persists in perpetuity)
+**WACC inputs** — derive first so WACC is known before judgment calls.
 
-**Mechanical assumptions** — company-specific but derivable from financial data, no judgment needed.
+*Mechanical (auto-derived from data):*
 - Beta (from company overview)
 - Cost of Debt (interest expense / total debt)
 - Tax Rate: marginal (21% default) + effective (from income statement; transitions to marginal over projection period)
 
-**Market/fixed assumptions** — rarely change, near-constant.
+*Market/fixed (rarely change):*
 - Risk-Free Rate (10-year Treasury, default 4.5%)
 - Market Risk Premium (standard 5%)
 - Terminal Growth Rate (defaults to risk-free rate)
 - Projection Years (default 10)
-- Cost of Capital override (manual hurdle rate; None = compute WACC from components)
+
+**After WACC is computed** — the user can override it with a manual hurdle rate (cost_of_capital).
+
+**Core assumptions** — company-specific, change with new data, worth deliberating. Research context matters here.
+- Revenue Growth Rate (Years 1-5)
+- Operating Margin / Target Operating Margin
+- Sales-to-Capital Ratio
+- Terminal ROIC (how much competitive advantage persists in perpetuity — compared against WACC)
 
 ## Auto Mode (`--auto`)
 
@@ -59,9 +62,67 @@ Strip `--auto` from the ticker symbol (e.g., `MSFT --auto` → ticker is `MSFT`)
 - **If found:** Read it and note its date. If older than 30 days, display a warning: "Using research from {date} — consider re-running /research first"
 - **If not found:** Note that no research is available. Proceed with data-only calibration and display: "No research file found — recommendations based on financial data only"
 
-### 2. Reverse DCF — What Does the Market Imply?
+### 2. WACC Inputs — Mechanical Assumptions (auto-derive from data)
 
-Before setting assumptions, calculate what revenue growth rate the current stock price implies. This gives calibrate a crucial anchor.
+Derive these from the financial data first, so WACC is established before any judgment calls.
+
+- **Beta:** Use beta from company overview data. Display: "Beta: X.XX (from overview)"
+- **Cost of Debt:** Calculate as interest expense / total debt from financials. Display: "Cost of debt: X.X% (interest expense / total debt)"
+  - **Sanity check:** If cost of debt is more than 100bps below the risk-free rate, flag: "Cost of debt (X.X%) is well below risk-free rate (Y.Y%) — this reflects the blended coupon on legacy debt, not marginal borrowing cost. New issuances are likely at Z%. WACC may be slightly understated." This is informational — don't auto-correct, but ensure the user is aware.
+- **Tax Rate (marginal):** Default 21% for US companies. Only change if the company is domiciled in a different tax jurisdiction. Display: "Tax rate (marginal): 21%"
+- **Effective Tax Rate:** Calculate from income statement: tax expense / pre-tax income. Set as `effective_tax_rate` in assumptions. The DCF model transitions from this rate in year 1 to the marginal rate by year 10. Terminal value always uses marginal. Display: "Effective tax rate: X.X% (from income statement) → transitions to 21% marginal"
+  - If effective rate is within 2% of marginal, skip the transition — set `effective_tax_rate` to None and note: "Effective rate (X.X%) is close to marginal (21%) — no transition needed"
+  - If effective rate is 0% or negative (NOLs, tax credits), set it and note: "Effective rate near 0% — company has tax shield from NOLs. Early-year NOPAT will be higher, transitioning to marginal by year 10"
+
+If a mechanical assumption is in `_manual_overrides`, keep the user's value and note: "Beta: keeping manual override at X.XX (data suggests Y.YY)"
+
+**Interactive mode:** After showing all, ask once: "Any of these to adjust? [Enter to accept all]" — only drill into specifics if the user says yes.
+
+### 3. WACC Inputs — Market/Fixed Assumptions (keep defaults)
+
+These rarely need changing. Show a compact summary:
+
+```
+Market/Fixed Assumptions (unchanged):
+  Risk-free rate:      4.5%
+  Market risk premium:  5.0%
+  Terminal growth rate: 4.5% (= risk-free rate)
+  Projection years:    10
+```
+
+If any value looks clearly outdated (e.g., risk-free rate is 4.5% but current Treasury is 3.8%), flag it: "Risk-free rate may be outdated — current 10-year Treasury is ~3.8%. Update? [y/N]"
+
+**Interactive mode:** Ask once: "Any of these to adjust? [Enter to accept all]"
+
+**Auto mode:** Keep current values. Only update risk-free rate if a WebSearch was already done and the current value is more than 50bps off.
+
+### 4. Compute and Display WACC
+
+After mechanical and market/fixed assumptions are set, compute and display WACC. This anchors everything that follows.
+
+```
+WACC: X.X%
+  Cost of equity: X.X% (CAPM: Rf X.X% + β X.XX × ERP X.X%)
+  Cost of debt (after tax): X.X%
+  Weights: XX% equity / XX% debt
+```
+
+**Hurdle rate override:** After showing the computed WACC, offer the option to override it. This is useful when WACC components have known limitations (e.g., regression beta is noisy, cost of debt is stale).
+
+**Interactive mode:** "WACC is X.X%. Override with a manual hurdle rate? [Enter to keep computed]"
+
+If a cost_of_capital override is already set: "Cost of capital: X.X% (manual hurdle rate). Remove override and use computed WACC (Y.Y%)? [Enter to keep]"
+
+**Auto mode:** Never auto-set or auto-remove a cost_of_capital override.
+
+If a hurdle rate is set (existing or new), display:
+```
+Cost of Capital: X.X% (manual hurdle rate — WACC computation bypassed)
+```
+
+### 5. Reverse DCF — What Does the Market Imply?
+
+Before setting core assumptions, calculate what revenue growth rate the current stock price implies. This gives calibrate a crucial anchor.
 
 Use `DCFModel.reverse_dcf(financial_data, shares_outstanding, current_price)` to solve for the revenue growth rate that produces fair value = current price. This uses binary search internally — no manual loops needed.
 
@@ -77,7 +138,7 @@ This is context, not a recommendation. It tells you: "the market is pricing in X
 **Auto mode:** Calculate and display. Use as a reasonableness check when setting revenue growth.
 **Interactive mode:** Calculate and display before presenting core assumptions.
 
-### 3. Core Assumptions (detailed review)
+### 6. Core Assumptions (detailed review)
 
 For each core assumption, do the following:
 1. Show the **current value** from the assumptions file
@@ -125,7 +186,7 @@ Terminal ROIC determines how much the company must reinvest to sustain terminal 
 
 **Anchors — always show these before recommending:**
 - **Current ROIC** from `calculate_dcf_inputs()` (returned as `dcf_inputs['roic']`)
-- **WACC** (the floor — no competitive advantage persists)
+- **WACC** from step 4 (the floor — no competitive advantage persists)
 - **Implied ROIC from model assumptions:** `operating_margin × sales_to_capital × (1 - tax_rate)`. This is what the DCF's own year-10 numbers imply, and represents the ROIC if current operating efficiency continues.
 - **Constraint:** Terminal ROIC must be >= terminal growth rate (otherwise reinvestment > 100%)
 
@@ -170,48 +231,9 @@ Terminal ROIC:
 
 **Auto mode:** Apply the table-based recommendation using research moat signals. If no research is available, keep default (= WACC). If the recommended value is a manual override, keep the override and show what auto would recommend.
 
-### 4. Mechanical Assumptions (auto-derive from data)
+### 7. Coherence Check
 
-Derive these silently from the financial data. No detailed reasoning needed — just show a one-line summary per field.
-
-- **Beta:** Use beta from company overview data. Display: "Beta: X.XX (from overview)"
-- **Cost of Debt:** Calculate as interest expense / total debt from financials. Display: "Cost of debt: X.X% (interest expense / total debt)"
-  - **Sanity check:** If cost of debt is more than 100bps below the risk-free rate, flag: "Cost of debt (X.X%) is well below risk-free rate (Y.Y%) — this reflects the blended coupon on legacy debt, not marginal borrowing cost. New issuances are likely at Z%. WACC may be slightly understated." This is informational — don't auto-correct, but ensure the user is aware.
-- **Tax Rate (marginal):** Default 21% for US companies. Only change if the company is domiciled in a different tax jurisdiction. Display: "Tax rate (marginal): 21%"
-- **Effective Tax Rate:** Calculate from income statement: tax expense / pre-tax income. Set as `effective_tax_rate` in assumptions. The DCF model transitions from this rate in year 1 to the marginal rate by year 10. Terminal value always uses marginal. Display: "Effective tax rate: X.X% (from income statement) → transitions to 21% marginal"
-  - If effective rate is within 2% of marginal, skip the transition — set `effective_tax_rate` to None and note: "Effective rate (X.X%) is close to marginal (21%) — no transition needed"
-  - If effective rate is 0% or negative (NOLs, tax credits), set it and note: "Effective rate near 0% — company has tax shield from NOLs. Early-year NOPAT will be higher, transitioning to marginal by year 10"
-
-If a mechanical assumption is in `_manual_overrides`, keep the user's value and note: "Beta: keeping manual override at X.XX (data suggests Y.YY)"
-
-**Interactive mode:** After showing all three, ask once: "Any of these to adjust? [Enter to accept all]" — only drill into specifics if the user says yes.
-
-### 5. Market/Fixed Assumptions (keep defaults)
-
-These rarely need changing. Show a compact summary:
-
-```
-Market/Fixed Assumptions (unchanged):
-  Risk-free rate:      4.5%
-  Market risk premium:  5.0%
-  Terminal growth rate: 4.5% (= risk-free rate)
-  Projection years:    10
-  Cost of capital:     Computed from WACC (no override)
-```
-
-If any value looks clearly outdated (e.g., risk-free rate is 4.5% but current Treasury is 3.8%), flag it: "Risk-free rate may be outdated — current 10-year Treasury is ~3.8%. Update? [y/N]"
-
-**Cost of capital override:** If the user wants to bypass WACC computation with a manual hurdle rate, they can set `cost_of_capital`. This overrides the computed WACC entirely — beta, ERP, and cost of debt become irrelevant. Display: "Cost of capital: computed at X.X% from CAPM. Override with a hurdle rate? [Enter to keep computed]"
-
-If already set: "Cost of capital: X.X% (manual hurdle rate). Remove override and compute from WACC? [Enter to keep]"
-
-**Interactive mode:** Ask once: "Any of these to adjust? [Enter to accept all]"
-
-**Auto mode:** Keep current values. Only update risk-free rate if a WebSearch was already done and the current value is more than 50bps off. Never auto-set or auto-remove a cost_of_capital override.
-
-### 6. Coherence Check
-
-After all assumptions are set (core + mechanical + market/fixed), step back and review them as a whole. This is a reasoning step — no new data or web searches needed.
+After all assumptions are set, step back and review them as a whole. This is a reasoning step — no new data or web searches needed.
 
 **ROIC context:** Before running consistency checks, compute ROIC from `calculate_dcf_inputs()` (returned as `dcf_inputs['roic']`). Display it: "Current ROIC: X.X% | WACC: Y.Y% | Spread: Z.Z%". This anchors the checks below.
 
@@ -236,7 +258,7 @@ After all assumptions are set (core + mechanical + market/fixed), step back and 
 
 If no inconsistencies are found, display: "Coherence check passed — assumptions are internally consistent"
 
-### 7. Sensitivity Awareness — What Matters Most?
+### 8. Sensitivity Awareness — What Matters Most?
 
 Run a quick sensitivity check on the 4 core assumptions. For each, vary by ±20% from the current value and calculate the resulting fair value using `DCFModel`. For terminal ROIC, also show the WACC-default value as the downside case. Display:
 
@@ -257,7 +279,7 @@ Flag the highest-impact assumption: "Fair value is most sensitive to revenue gro
 - If the highest-impact assumption is a manual override: "[Assumption] is the most sensitive assumption AND a manual override — your specific bet has the biggest impact on fair value. A ±20% swing means ±$XX. Are you comfortable with this exposure? [y/N]"
 - Both conditions can apply simultaneously — flag both.
 
-### 8. Pre-Mortem — What Could Go Wrong?
+### 9. Pre-Mortem — What Could Go Wrong?
 
 Final gut check. One paragraph of reasoning:
 
@@ -273,7 +295,7 @@ Display the pre-mortem reasoning. This is informational — it doesn't change as
 **Auto mode:** Generate and display.
 **Interactive mode:** Generate and display. Ask: "Does this change your view on any assumptions? [y/N]"
 
-### 9. Save Updated Assumptions
+### 10. Save Updated Assumptions
 - Save via `StockManager.save_assumptions(symbol, assumptions, manual_overrides=overrides)`
 - **Interactive mode:** Track `_manual_overrides` throughout:
   - Start with the loaded list from `StockManager.load_manual_overrides(symbol)`
