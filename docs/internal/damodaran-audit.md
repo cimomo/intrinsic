@@ -60,7 +60,7 @@ ROIC is the single most important metric in Damodaran's framework:
 
 ```
 ROIC = NOPAT / Invested Capital
-     = Operating Income * (1 - Tax Rate) / (Equity + Debt - Cash)
+     = Operating Income * (1 - Tax Rate) / (Equity + Debt - Cash - Investments)
 ```
 
 We have ROE and ROA in `CompanyMetrics` but not ROIC. It should be:
