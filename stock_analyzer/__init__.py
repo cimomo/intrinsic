@@ -25,7 +25,7 @@ from .stock_manager import StockManager
 from .utils import safe_float
 from .av_fetcher import AlphaVantageFetcher
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __all__ = [
     "DCFModel", "DCFAssumptions", "FinancialMetrics", "StockManager",
     "safe_float", "AlphaVantageFetcher",
