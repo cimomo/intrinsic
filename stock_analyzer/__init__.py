@@ -20,7 +20,7 @@ except ImportError:
     pass
 
 from .dcf import DCFModel, DCFAssumptions
-from .metrics import FinancialMetrics, get_synthetic_rating, get_spread_for_rating, get_rd_amortizable_life
+from .metrics import FinancialMetrics, get_synthetic_rating, get_spread_for_rating, get_rd_amortizable_life, calculate_rd_capitalization
 from .stock_manager import StockManager
 from .utils import safe_float
 from .av_fetcher import AlphaVantageFetcher
@@ -30,4 +30,5 @@ __all__ = [
     "DCFModel", "DCFAssumptions", "FinancialMetrics", "StockManager",
     "safe_float", "AlphaVantageFetcher",
     "get_synthetic_rating", "get_spread_for_rating", "get_rd_amortizable_life",
+    "calculate_rd_capitalization",
 ]

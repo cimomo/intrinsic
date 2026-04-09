@@ -192,6 +192,82 @@ def get_rd_amortizable_life(sector: Optional[str], industry: Optional[str]) -> i
     return _RD_AMORTIZABLE_LIFE_BY_SECTOR.get(sector_lower, _RD_AMORTIZABLE_LIFE_DEFAULT)
 
 
+def calculate_rd_capitalization(
+    annual_reports: List[Dict],
+    amortizable_life: int,
+    tax_rate: float,
+) -> Optional[Dict]:
+    """
+    Capitalize R&D expenses using Damodaran's methodology.
+
+    Converts R&D from an operating expense to a capital expense by building
+    a research asset (unamortized R&D) and computing the current-year
+    amortization. Uses pre-tax R&D (verified from Damodaran's R&DConv.xls).
+
+    FCF is unchanged by this adjustment. What changes: NOPAT, invested
+    capital, and ROIC — which flow into terminal reinvestment (g/ROIC),
+    fundamental growth checks, and value-of-growth checks.
+
+    Args:
+        annual_reports: Annual income statements, most recent first.
+            Each must have 'researchAndDevelopment' and 'fiscalDateEnding'.
+        amortizable_life: Years over which to amortize R&D (from industry lookup).
+        tax_rate: Tax rate for adjusted NOPAT calculation.
+
+    Returns:
+        Dict with research_asset, amortization, current_rd, adjusted_nopat_delta,
+        rd_expenses, amortizable_life. Returns None if no R&D data available.
+    """
+    if not annual_reports:
+        return None
+
+    # Extract R&D expenses (most recent first)
+    rd_expenses = []
+    for report in annual_reports:
+        rd = safe_float(report.get("researchAndDevelopment"))
+        if rd is not None and rd > 0:
+            year = report.get("fiscalDateEnding", "")
+            rd_expenses.append((year, rd))
+
+    if not rd_expenses:
+        return None
+
+    current_rd = rd_expenses[0][1]
+
+    # Build research asset and compute amortization
+    # Per Damodaran's R&DConv.xls:
+    # - Current year (i=0): unamortized = N/N = 1.0, amortization = 0
+    # - Year -1 (i=1): unamortized = (N-1)/N, amortization = R&D/N
+    # - Year -(N-1): unamortized = 1/N, amortization = R&D/N
+    # - Year -N: unamortized = 0, amortization = R&D/N (final year out)
+    n = amortizable_life
+    research_asset = 0.0
+    amortization = 0.0
+
+    for i, (year, rd) in enumerate(rd_expenses):
+        if i >= n:
+            break  # Beyond amortizable window
+        unamortized_fraction = (n - i) / n
+        research_asset += rd * unamortized_fraction
+        if i > 0:  # Current year has zero amortization
+            amortization += rd / n
+
+    # Year -N contributes to amortization but has 0 in asset
+    if len(rd_expenses) > n:
+        amortization += rd_expenses[n][1] / n
+
+    adjusted_nopat_delta = current_rd - amortization
+
+    return {
+        "research_asset": research_asset,
+        "amortization": amortization,
+        "current_rd": current_rd,
+        "adjusted_nopat_delta": adjusted_nopat_delta,
+        "rd_expenses": rd_expenses[:n],
+        "amortizable_life": n,
+    }
+
+
 @dataclass
 class CompanyMetrics:
     """Container for company financial metrics"""
