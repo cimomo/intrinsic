@@ -150,7 +150,7 @@ Where:
 Re = Rf + β × ERP             (CAPM: Cost of Equity)
 Rf = Risk-free rate            (10-year Treasury, default 4.5%)
 ERP = Equity risk premium      (default 5.0%)
-Rd = Pre-tax cost of debt      (default 5.0%)
+Rd = Pre-tax cost of debt      (from credit rating; see Cost of debt below)
 Tc = Marginal tax rate         (21%)
 E = Market cap                 (market value of equity)
 D = Total debt                 (book value as proxy for market value)
@@ -163,7 +163,29 @@ Equity is weighted at market value (market cap). Debt is weighted at book value 
 
 **Hurdle rate override.** If `cost_of_capital` is set, it bypasses WACC computation entirely — beta, ERP, and cost of debt become irrelevant. This is useful when WACC components have known limitations or when the investor has a specific required return.
 
-See [Known limitations](#known-limitations) for how beta, cost of debt, and equity risk premium can be improved.
+See [Known limitations](#known-limitations) for how beta and equity risk premium can be improved.
+
+---
+
+## Cost of debt
+
+The pre-tax cost of debt is derived from the company's credit rating, following Damodaran's hierarchy:
+
+1. **Actual credit rating** (S&P, Moody's) — primary. Looked up via web search during calibration.
+2. **Synthetic credit rating** — fallback for unrated companies. Derived from interest coverage ratio (EBIT / Interest Expense), mapped through Damodaran's lookup table. Auto-selects large-firm (market cap >= $5B) or small-firm table.
+3. **Manual override** — user can set cost of debt directly during calibration.
+
+Once the rating is determined:
+
+```
+Cost of Debt = Risk-Free Rate + Default Spread
+```
+
+Default spreads come from Damodaran's published tables (updated annually, January). The spread reflects the credit risk premium the market demands for lending to a company with that rating.
+
+**Why not interest expense / total debt?** That ratio reflects the blended coupon on legacy debt — bonds issued years ago at rates that may bear no resemblance to current borrowing costs. A company like Microsoft with old low-coupon bonds shows 2.1% cost of debt, below the risk-free rate. The rating-based approach estimates what the company would pay to borrow *today*.
+
+**Synthetic rating limitations:** Relies on a single ratio (interest coverage). Does not capture assets, cash flow stability, market position, or other factors that rating agencies consider. Most reliable for large manufacturing/technology firms. For the large-cap companies this tool typically analyzes, actual ratings are available via web search and are preferred.
 
 ---
 
@@ -284,7 +306,7 @@ Negative growth rates are allowed in the sensitivity table.
 | Risk-free rate | 4.5% | 10-year Treasury yield |
 | Equity risk premium | 5.0% | Historical ERP; Damodaran's implied ERP is ~4.23% |
 | Beta | From financial data | Regression beta; bottom-up preferred |
-| Cost of debt | 5.0% | Pre-tax; synthetic rating approach preferred |
+| Cost of debt | 5.0% | Pre-tax; calibrate derives from credit rating + Damodaran spread |
 | Sales-to-capital ratio | Computed from financials | Revenue / Invested Capital |
 | Terminal ROIC | WACC | No excess returns in perpetuity; override for wide moats |
 | Cost of capital | None | Compute WACC from components; set to override with manual hurdle rate |
@@ -303,7 +325,7 @@ The model is a work in progress. These are the most significant simplifications:
 
 **Static equity risk premium.** The default (5.0%) is a historical average. A forward-looking implied ERP, derived from current market pricing and expected cash flows, better reflects current risk appetite. Damodaran publishes this monthly — his January 2026 estimate is 4.23%, meaning the default overstates cost of equity and depresses fair value.
 
-**No synthetic credit rating.** Cost of debt is estimated from interest expense / total debt, which reflects the blended coupon on legacy debt rather than marginal borrowing cost. A more reliable approach maps interest coverage ratios to synthetic credit ratings and default spreads (Damodaran publishes these lookup tables), especially for cash-rich companies where the interest/debt ratio produces unrealistically low values.
+**Cost of debt approximation.** Cost of debt is derived from credit ratings (actual or synthetic) mapped to default spreads from Damodaran's annual lookup table. The synthetic approach relies solely on interest coverage ratio and may not capture all factors that rating agencies consider. The spread table is a January snapshot, not live market data — during credit crises, actual spreads may be significantly wider. For companies with complex capital structures (convertible debt, structured financing), the single-rating approach may not capture the true borrowing cost.
 
 **No R&D capitalization.** GAAP treats R&D as an operating expense, but for valuation purposes it should be treated as a capital expenditure — adding unamortized R&D back to invested capital and adjusting operating income. Without this adjustment, ROIC is understated by 10-20% for R&D-heavy tech companies, which distorts the terminal value reinvestment calculation.
 

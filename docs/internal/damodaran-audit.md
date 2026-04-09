@@ -487,7 +487,7 @@ Damodaran sometimes transitions beta -> 1.0 and D/E -> industry average during t
 | 8b | WACC tax rate consistency | 1 | LOW-MEDIUM | **DONE** | Year-varying WACC when effective_tax_rate is set + cost_of_capital hurdle rate override |
 | 9 | Bottom-up beta | 2 | MEDIUM-HIGH | TODO | |
 | 10 | Implied ERP | 2 | MEDIUM | TODO | Current default 5.0% vs Damodaran's Jan 2026 implied 4.23% |
-| 11 | Synthetic credit rating (cost of debt) | 2 | MEDIUM | TODO | Addresses known GOOGL issue; Jan 2026 lookup table added |
+| 11 | Synthetic credit rating (cost of debt) | 2 | MEDIUM | **DONE** | Rating-based cost of debt: actual rating primary, synthetic fallback, Damodaran spread table |
 | 12 | Cyclical earnings normalization | 2 | MEDIUM | TODO | |
 | 12b | Value decomposition (assets in place vs growth) | 2 | LOW-MEDIUM | TODO | Sanity check: what % of value comes from growth? |
 | 12c | Implied revenue / TAM check | 2 | LOW-MEDIUM | TODO | Sanity check: is year-10 revenue plausible? |
@@ -519,8 +519,10 @@ Damodaran sometimes transitions beta -> 1.0 and D/E -> industry average during t
 
 ### Phase 2 — Better inputs (items 9-12)
 
-Not started. These improve assumption quality without changing model structure.
-- **#11 (synthetic credit rating)** is the highest priority in this phase — it addresses the known GOOGL cost-of-debt issue. January 2026 lookup table now documented in the item.
+**DONE (1 of 6):**
+- Item 11: Rating-based cost of debt. Actual credit rating (web search) as primary, synthetic from interest coverage as fallback, Damodaran's January 2026 spread table. Large-firm and small-firm tables, auto-selected by market cap. Replaces broken `interest_expense / total_debt` heuristic.
+
+**Remaining:**
 - **#9 (bottom-up beta)** requires either hardcoding Damodaran's industry beta table or fetching it
 - **#10 (implied ERP)** is a small default update or web lookup. Current default (5.0%) is 77bps above Damodaran's Jan 2026 implied ERP (4.23%).
 - **#12 (cyclical normalization)** is a calibrate skill change
@@ -533,7 +535,7 @@ Not started. Higher effort, most impactful for specific company types.
 
 ### Test count
 
-194 tests. Key additions:
+226 tests. Key additions:
 - 9 ROIC tests (metrics.py edge cases)
 - 10 terminal value tests (g/ROIC reinvestment, terminal ROIC default/override/guards)
 - 4 tax rate transition tests (interpolation, convergence, terminal uses marginal)
