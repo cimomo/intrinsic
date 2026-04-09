@@ -164,6 +164,7 @@ _RD_AMORTIZABLE_LIFE_INDUSTRY_OVERRIDES = [
     ("electronic", 5),
     ("computer hardware", 5),
     ("scientific instrument", 5),
+    ("chemical", 10),
 ]
 
 _RD_AMORTIZABLE_LIFE_DEFAULT = 3
@@ -195,7 +196,6 @@ def get_rd_amortizable_life(sector: Optional[str], industry: Optional[str]) -> i
 def calculate_rd_capitalization(
     annual_reports: List[Dict],
     amortizable_life: int,
-    tax_rate: float,
 ) -> Optional[Dict]:
     """
     Capitalize R&D expenses using Damodaran's methodology.
@@ -203,6 +203,11 @@ def calculate_rd_capitalization(
     Converts R&D from an operating expense to a capital expense by building
     a research asset (unamortized R&D) and computing the current-year
     amortization. Uses pre-tax R&D (verified from Damodaran's R&DConv.xls).
+
+    The adjusted_nopat_delta (= current R&D - amortization) is pre-tax.
+    The caller adds it to EBIT(1-t) to get adjusted NOPAT — this works
+    because R&D remains fully tax-deductible, so the pre-tax amounts
+    naturally capture the "ignored tax benefit."
 
     FCF is unchanged by this adjustment. What changes: NOPAT, invested
     capital, and ROIC — which flow into terminal reinvestment (g/ROIC),
@@ -212,7 +217,6 @@ def calculate_rd_capitalization(
         annual_reports: Annual income statements, most recent first.
             Each must have 'researchAndDevelopment' and 'fiscalDateEnding'.
         amortizable_life: Years over which to amortize R&D (from industry lookup).
-        tax_rate: Tax rate for adjusted NOPAT calculation.
 
     Returns:
         Dict with research_asset, amortization, current_rd, adjusted_nopat_delta,
@@ -459,7 +463,7 @@ class FinancialMetrics:
             sector = overview.get("Sector")
             industry = overview.get("Industry")
             rd_life = get_rd_amortizable_life(sector, industry)
-            rd_cap = calculate_rd_capitalization(income_annual, rd_life, tax_rate)
+            rd_cap = calculate_rd_capitalization(income_annual, rd_life)
 
             if rd_cap and rd_cap["research_asset"] > 0:
                 research_asset = rd_cap["research_asset"]

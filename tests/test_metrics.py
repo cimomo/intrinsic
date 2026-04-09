@@ -539,7 +539,8 @@ class TestGetRdAmortizableLife:
         assert get_rd_amortizable_life("Energy", "Oil & Gas Integrated") == 5
 
     def test_basic_materials(self):
-        assert get_rd_amortizable_life("Basic Materials", "Specialty Chemicals") == 5
+        """Basic Materials defaults to 5, but chemicals override to 10"""
+        assert get_rd_amortizable_life("Basic Materials", "Gold Mining") == 5
 
     def test_financial_services(self):
         assert get_rd_amortizable_life("Financial Services", "Banks—Diversified") == 2
@@ -560,6 +561,11 @@ class TestGetRdAmortizableLife:
     def test_semiconductor_substring_match(self):
         assert get_rd_amortizable_life("Technology", "Semiconductors & Semiconductor Equipment") == 5
 
+    def test_chemical_industry_override(self):
+        """Chemicals under Basic Materials get 10 years, not sector default of 5"""
+        assert get_rd_amortizable_life("Basic Materials", "Specialty Chemicals") == 10
+        assert get_rd_amortizable_life("Basic Materials", "Chemical—Diversified") == 10
+
 
 class TestCalculateRdCapitalization:
     def test_basic_3_year_capitalization(self):
@@ -569,7 +575,7 @@ class TestCalculateRdCapitalization:
             {"fiscalDateEnding": "2023-06-30", "researchAndDevelopment": "25000"},
             {"fiscalDateEnding": "2022-06-30", "researchAndDevelopment": "20000"},
         ]
-        result = calculate_rd_capitalization(reports, amortizable_life=3, tax_rate=0.21)
+        result = calculate_rd_capitalization(reports, amortizable_life=3)
 
         # Current year (2024): 30000 * 3/3 = 30000
         # Year -1 (2023): 25000 * 2/3 = 16666.67
@@ -592,7 +598,7 @@ class TestCalculateRdCapitalization:
             {"fiscalDateEnding": "2021-12-31", "researchAndDevelopment": "7000"},
             {"fiscalDateEnding": "2020-12-31", "researchAndDevelopment": "6000"},
         ]
-        result = calculate_rd_capitalization(reports, amortizable_life=5, tax_rate=0.21)
+        result = calculate_rd_capitalization(reports, amortizable_life=5)
 
         expected_asset = 10000 + 7200 + 4800 + 2800 + 1200
         assert result["research_asset"] == pytest.approx(expected_asset)
@@ -606,7 +612,7 @@ class TestCalculateRdCapitalization:
             {"fiscalDateEnding": "2024-12-31", "researchAndDevelopment": "10000"},
             {"fiscalDateEnding": "2023-12-31", "researchAndDevelopment": "8000"},
         ]
-        result = calculate_rd_capitalization(reports, amortizable_life=5, tax_rate=0.21)
+        result = calculate_rd_capitalization(reports, amortizable_life=5)
 
         assert result["research_asset"] == pytest.approx(16400)
         assert result["amortization"] == pytest.approx(1600)
@@ -617,21 +623,21 @@ class TestCalculateRdCapitalization:
             {"fiscalDateEnding": "2024-12-31", "researchAndDevelopment": "0"},
             {"fiscalDateEnding": "2023-12-31", "researchAndDevelopment": "0"},
         ]
-        result = calculate_rd_capitalization(reports, amortizable_life=3, tax_rate=0.21)
+        result = calculate_rd_capitalization(reports, amortizable_life=3)
         assert result is None
 
     def test_missing_rd_field(self):
         reports = [{"fiscalDateEnding": "2024-12-31", "totalRevenue": "100000"}]
-        result = calculate_rd_capitalization(reports, amortizable_life=3, tax_rate=0.21)
+        result = calculate_rd_capitalization(reports, amortizable_life=3)
         assert result is None
 
     def test_none_rd_value(self):
         reports = [{"fiscalDateEnding": "2024-12-31", "researchAndDevelopment": "None"}]
-        result = calculate_rd_capitalization(reports, amortizable_life=3, tax_rate=0.21)
+        result = calculate_rd_capitalization(reports, amortizable_life=3)
         assert result is None
 
     def test_empty_reports(self):
-        result = calculate_rd_capitalization([], amortizable_life=3, tax_rate=0.21)
+        result = calculate_rd_capitalization([], amortizable_life=3)
         assert result is None
 
     def test_declining_rd_negative_delta(self):
@@ -641,13 +647,13 @@ class TestCalculateRdCapitalization:
             {"fiscalDateEnding": "2023-12-31", "researchAndDevelopment": "10000"},
             {"fiscalDateEnding": "2022-12-31", "researchAndDevelopment": "15000"},
         ]
-        result = calculate_rd_capitalization(reports, amortizable_life=3, tax_rate=0.21)
+        result = calculate_rd_capitalization(reports, amortizable_life=3)
         assert result["adjusted_nopat_delta"] < 0
 
     def test_single_year_no_amortization(self):
         """Single year: asset = current R&D, amortization = 0"""
         reports = [{"fiscalDateEnding": "2024-12-31", "researchAndDevelopment": "20000"}]
-        result = calculate_rd_capitalization(reports, amortizable_life=3, tax_rate=0.21)
+        result = calculate_rd_capitalization(reports, amortizable_life=3)
 
         assert result["research_asset"] == 20000
         assert result["amortization"] == 0
@@ -659,7 +665,7 @@ class TestCalculateRdCapitalization:
             {"fiscalDateEnding": "2024-06-30", "researchAndDevelopment": "30000"},
             {"fiscalDateEnding": "2023-06-30", "researchAndDevelopment": "25000"},
         ]
-        result = calculate_rd_capitalization(reports, amortizable_life=3, tax_rate=0.21)
+        result = calculate_rd_capitalization(reports, amortizable_life=3)
         assert result["rd_expenses"] == [("2024-06-30", 30000.0), ("2023-06-30", 25000.0)]
 
     def test_damodaran_spreadsheet_verification(self):
@@ -670,7 +676,7 @@ class TestCalculateRdCapitalization:
             {"fiscalDateEnding": "2022", "researchAndDevelopment": "1300"},
             {"fiscalDateEnding": "2021", "researchAndDevelopment": "1704"},
         ]
-        result = calculate_rd_capitalization(reports, amortizable_life=10, tax_rate=0.35)
+        result = calculate_rd_capitalization(reports, amortizable_life=10)
 
         expected_asset = 1924 + 1633 * 0.9 + 1300 * 0.8 + 1704 * 0.7
         assert result["research_asset"] == pytest.approx(expected_asset)
@@ -681,9 +687,23 @@ class TestCalculateRdCapitalization:
     def test_current_year_has_zero_amortization(self):
         """Current year contributes to asset but NOT to amortization"""
         reports = [{"fiscalDateEnding": "2024", "researchAndDevelopment": "50000"}]
-        result = calculate_rd_capitalization(reports, amortizable_life=3, tax_rate=0.21)
+        result = calculate_rd_capitalization(reports, amortizable_life=3)
         assert result["amortization"] == 0
         assert result["research_asset"] == 50000
+
+    def test_year_minus_n_contributes_to_amortization(self):
+        """Year -N (fully amortized out) still contributes R&D/N to amortization"""
+        reports = [
+            {"fiscalDateEnding": "2024", "researchAndDevelopment": "300"},
+            {"fiscalDateEnding": "2023", "researchAndDevelopment": "200"},
+            {"fiscalDateEnding": "2022", "researchAndDevelopment": "100"},
+            {"fiscalDateEnding": "2021", "researchAndDevelopment": "50"},  # year -3, fully amortized
+        ]
+        result = calculate_rd_capitalization(reports, amortizable_life=3)
+        # Asset: 300*3/3 + 200*2/3 + 100*1/3 = 300 + 133.33 + 33.33 = 466.67
+        assert result["research_asset"] == pytest.approx(300 + 200 * 2 / 3 + 100 / 3)
+        # Amortization: 200/3 + 100/3 + 50/3 (year -3 contributes its final 1/N)
+        assert result["amortization"] == pytest.approx((200 + 100 + 50) / 3)
 
 
 class TestDCFInputsRdCapitalization:
