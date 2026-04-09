@@ -814,7 +814,7 @@ class TestGetSummary:
         assert "TERMINAL VALUE" in summary
         assert "VALUATION SUMMARY" in summary
         assert "SENSITIVITY ANALYSIS" in summary
-        assert "Recommendation:" in summary
+        assert "Assessment:" in summary
 
     def test_summary_shows_margin_convergence(self, sample_financial_data):
         assumptions = DCFAssumptions(target_operating_margin=0.40)
@@ -824,25 +824,25 @@ class TestGetSummary:
         assert "Target Op. Margin" in summary
         assert "Margin" in summary  # column header
 
-    def test_recommendation_bands(self, sample_financial_data):
-        """Verify different upside percentages produce correct recommendations"""
+    def test_assessment_bands(self, sample_financial_data):
+        """Verify different upside percentages produce correct assessments"""
         model = DCFModel()
         model.calculate_fair_value(sample_financial_data, 10e9, 100.0, verbose=True)
         # Manually override upside to test bands
         model.results['upside_percent'] = 25
-        assert "STRONG BUY" in model.get_summary()
+        assert "Significantly Undervalued" in model.get_summary()
 
         model.results['upside_percent'] = 15
-        assert "BUY" in model.get_summary()
+        assert "Undervalued" in model.get_summary()
 
         model.results['upside_percent'] = 0
-        assert "HOLD" in model.get_summary()
+        assert "Fairly Valued" in model.get_summary()
 
         model.results['upside_percent'] = -15
-        assert "SELL" in model.get_summary()
+        assert "Overvalued" in model.get_summary()
 
         model.results['upside_percent'] = -25
-        assert "STRONG SELL" in model.get_summary()
+        assert "Significantly Overvalued" in model.get_summary()
 
 
 # --- Equity Bridge ---

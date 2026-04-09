@@ -22,7 +22,7 @@ The report MUST follow this structure:
 **Date:** YYYY-MM-DD
 
 ## Verdict
-**RECOMMENDATION** | Fair value: $XXX (range: $XXX-$XXX) | Current: $XXX | Upside: X.X%
+**ASSESSMENT** | Fair value: $XXX (range: $XXX-$XXX) | Current: $XXX | Upside: X.X%
 Confidence: High/Medium/Low | Signals: Growth X (Y), Moat X/Y, Margin X, Capital X
 
 ## The Investment Case
@@ -35,7 +35,7 @@ Confidence: High/Medium/Low | Signals: Growth X (Y), Moat X/Y, Margin X, Capital
 [reverse DCF context + manual overrides as specific bets]
 
 ## Key Assumption Vulnerability
-[the one or two assumptions that flip the recommendation]
+[the one or two assumptions that flip the assessment]
 
 ## What Would Change This
 [specific triggers with timeframes]
@@ -59,20 +59,20 @@ Confidence: High/Medium/Low | Signals: Growth X (Y), Moat X/Y, Margin X, Capital
 ### 2. Analyze
 Before writing, think through the analytical questions:
 - Extract research signals: Growth signal, Confidence, Moat, Direction, Margin signal, Capital intensity
-- Extract valuation results: fair value, sensitivity range, reverse DCF implied growth, highest-impact assumption, sanity check warnings, confidence-adjusted recommendation
+- Extract valuation results: fair value, sensitivity range, reverse DCF implied growth, highest-impact assumption, sanity check warnings, confidence-adjusted assessment
 - Extract assumption metadata: manual overrides, key assumption values (revenue growth, target margin, S/C ratio, terminal ROIC, effective vs marginal tax rate)
 - **Alignment check:**
   - For each research signal, compare to the corresponding assumption. Flag disconnects — if aligned, a brief note is sufficient. Spend detail on mismatches.
   - Check if valuation structure is vulnerable to research Key Risks (e.g., high terminal value concentration + long-term uncertainty flagged in research)
   - Identify where the user is betting on the bull or bear side of the Key Debate
 - **Identify the user's specific bet:** Where do assumptions (especially manual overrides) diverge from market-implied growth or research signals? This is the core of "What You're Paying For."
-- **Determine verdict:** Start with the confidence-adjusted recommendation from valuation. Qualify if alignment check reveals consistent bullish or bearish lean against research signals. E.g., "BUY, but all three core assumptions lean bullish relative to Medium confidence research — this is a compounding bet."
+- **Determine verdict:** Start with the confidence-adjusted assessment from valuation. Qualify if alignment check reveals consistent bullish or bearish lean against research signals. E.g., "UNDERVALUED, but all three core assumptions lean bullish relative to Medium confidence research — this is a compounding bet."
 
 ### 3. Write the Report
 Write the report using the output template.
 
 **## Verdict**
-- Recommendation (qualified by alignment findings if needed)
+- Assessment (qualified by alignment findings if needed)
 - Fair value as range from sensitivity bounds
 - Current price and upside/downside
 - Confidence level from research
@@ -98,7 +98,7 @@ Write the report using the output template.
 
 **## Key Assumption Vulnerability**
 Two dimensions — cover both:
-- **Highest impact:** Which assumption swings fair value the most? (from sensitivity analysis). State the specific threshold: "If margin comes in at 40% instead of 44%, fair value drops to $304 — flipping from HOLD to SELL." Connect to the research Key Risk that could trigger this.
+- **Highest impact:** Which assumption swings fair value the most? (from sensitivity analysis). State the specific threshold: "If margin comes in at 40% instead of 44%, fair value drops to $304 — flipping from Fairly Valued to Overvalued." Connect to the research Key Risk that could trigger this.
 - **Most probable:** Which assumption is most likely to be wrong? (from manual overrides vs data, or Low/Medium confidence signals). This may be a different assumption than highest-impact. E.g., "S/C staying at 0.55 instead of 0.70 is more probable than a margin collapse — it would erode ~$25-30 of fair value without any dramatic trigger."
 - When both dimensions point to the same assumption, combine them. When they differ, discuss both — the user needs to know what would hurt most AND what's most likely to happen.
 
@@ -108,15 +108,15 @@ Two dimensions — cover both:
 - Include a re-evaluation trigger: "Re-evaluate after [next earnings date]"
 
 **## Prior Analysis (if available)**
-- If older `analysis_*.md` exists: previous recommendation vs current, fair value change, biggest assumption that moved
+- If older `analysis_*.md` exists: previous assessment vs current, fair value change, biggest assumption that moved
 - If no prior analysis, omit this section entirely
 
 **Writing quality:** Be concise and opinionated. Every sentence should either support the verdict, flag a risk, or provide actionable context. No filler.
 
 ### 4. Self-Review
 Re-read the report and check:
-- **Is the verdict justified?** Does the analysis below support the recommendation, or does the alignment check undermine it? If the alignment check found 3 disconnects but the verdict is an unqualified BUY, something is wrong.
-- **Standalone test:** Would a reader with only this document have enough context to understand AND challenge the recommendation?
+- **Is the verdict justified?** Does the analysis below support the assessment, or does the alignment check undermine it? If the alignment check found 3 disconnects but the verdict is an unqualified Undervalued, something is wrong.
+- **Standalone test:** Would a reader with only this document have enough context to understand AND challenge the assessment?
 - **Specificity check:** Are the "What Would Change This" triggers concrete enough to act on? "If growth slows" fails. "If Q3 Azure growth < 33%" passes.
 - **Evidence check:** Are there any claims not supported by the research or valuation files? If so, cite the basis or cut it.
 - If issues found, revise before saving.
@@ -128,9 +128,9 @@ Re-read the report and check:
 
 ### 6. Display Summary
 Show a concise summary:
-- Verdict line (recommendation, fair value range, upside)
+- Verdict line (assessment, fair value range, upside)
 - Signal summary
 - Number of alignment disconnects found
 - Key assumption vulnerability one-liner
-- Prior analysis delta if available (e.g., "vs previous: was BUY at $450, now HOLD at $386")
+- Prior analysis delta if available (e.g., "vs previous: was Undervalued at $450, now Fairly Valued at $386")
 - Location of saved file

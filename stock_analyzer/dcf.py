@@ -788,20 +788,20 @@ class DCFModel:
         summary += f"  Upside/Downside:          {r['upside_percent']:+.1f}%\n"
         summary += "\n"
 
-        # Recommendation
+        # Assessment
         upside = r['upside_percent']
         if upside > 20:
-            rec = "STRONG BUY - Significantly Undervalued"
+            rec = "Significantly Undervalued"
         elif upside > 10:
-            rec = "BUY - Undervalued"
+            rec = "Undervalued"
         elif upside > -10:
-            rec = "HOLD - Fairly Valued"
+            rec = "Fairly Valued"
         elif upside > -20:
-            rec = "SELL - Overvalued"
+            rec = "Overvalued"
         else:
-            rec = "STRONG SELL - Significantly Overvalued"
+            rec = "Significantly Overvalued"
 
-        summary += f"  Recommendation:           {rec}\n"
+        summary += f"  Assessment:               {rec}\n"
         summary += "\n"
 
         # Sensitivity analysis

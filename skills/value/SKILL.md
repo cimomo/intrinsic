@@ -24,7 +24,7 @@ PYTHONPATH="${CLAUDE_PLUGIN_ROOT:-.}" python3 -c "from stock_analyzer import ...
 - Try `StockManager.load_financial_data("$ARGUMENTS")` to check for cached data
 - **If cached data exists:** Use it (display "Using cached data from {fetched_at}")
 - **If no cached data:** Invoke `/fetch $ARGUMENTS` first, then load the cached data
-- Load the most recent `research_*.md` file in `data/<SYMBOL>/` if it exists — used for confidence-adjusted recommendation (step 4) and key risk context (step 5). If not found, note: "No research context available."
+- Load the most recent `research_*.md` file in `data/<SYMBOL>/` if it exists — used for confidence-adjusted assessment (step 4) and key risk context (step 5). If not found, note: "No research context available."
 
 ### 2. Display Key Metrics
 - Parse and display the financial metrics in a formatted table
@@ -64,13 +64,13 @@ PYTHONPATH="${CLAUDE_PLUGIN_ROOT:-.}" python3 -c "from stock_analyzer import ...
   - Valuation summary: PV of FCFs, PV of terminal value, enterprise value, equity bridge (cash, investments, debt), equity value
   - Fair value per share vs current price with upside/downside percentage
   - Sensitivity analysis table (growth rate vs operating margin)
-  - Investment recommendation — factor in research confidence if research was loaded in step 1:
+  - Valuation assessment — factor in research confidence if research was loaded in step 1:
     - Extract the **Confidence** level (High/Medium/Low) from the research
-    - Adjust the recommendation language based on confidence:
-      - **High confidence:** Use standard bands (>20% STRONG BUY, >10% BUY, etc.)
-      - **Medium confidence:** Downgrade one level (>20% becomes BUY not STRONG BUY, >10% becomes HOLD not BUY)
-      - **Low confidence:** Downgrade two levels and add caveat: "Low confidence — assumptions are highly uncertain"
-    - If no research available, use standard bands with a note: "No research context — recommendation based on DCF only"
+    - Adjust the assessment language based on confidence:
+      - **High confidence:** Use standard bands (>20% Significantly Undervalued, >10% Undervalued, ±10% Fairly Valued, >10% downside Overvalued, >20% downside Significantly Overvalued)
+      - **Medium confidence:** Tighten one level (>20% becomes Undervalued not Significantly Undervalued, >10% becomes Fairly Valued not Undervalued)
+      - **Low confidence:** Tighten two levels and add caveat: "Low confidence — assumptions are highly uncertain"
+    - If no research available, use standard bands with a note: "No research context — assessment based on DCF only"
     - **Near-zero upside (±2%):** When upside is within ±2%, add: "Your assumptions produce no margin of safety." If manual overrides exist, add: "The investment case rests on [list manual overrides] — if these don't pan out, there's no cushion." If no manual overrides, add: "The stock is priced to your assumptions — no edge at this price."
 
 ### 5. Sanity Check
@@ -94,7 +94,7 @@ Show a concise summary:
 - Fair value as a range using the sensitivity table bounds: "Fair value: $386 (range: $304-$488)"
 - Market-implied growth from step 3 vs your assumed growth: "Market implies 13.3%, you assume 16%"
 - Current price vs base fair value with upside/downside percentage
-- Confidence-adjusted recommendation from step 4
+- Confidence-adjusted assessment from step 4
 - Key assumptions (growth rate, target margin, S/C ratio, WACC)
 - Location of saved valuation file
 
