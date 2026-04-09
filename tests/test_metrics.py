@@ -316,6 +316,12 @@ class TestGetSpreadForRating:
     def test_moodys_ba1(self):
         assert get_spread_for_rating("Ba1") == 0.0138
 
+    def test_ccc_sub_notches(self):
+        """CCC+, CCC, CCC- all map to the same spread"""
+        assert get_spread_for_rating("CCC+") == 0.0885
+        assert get_spread_for_rating("CCC") == 0.0885
+        assert get_spread_for_rating("CCC-") == 0.0885
+
     def test_unknown_rating_returns_none(self):
         assert get_spread_for_rating("XYZ") is None
 

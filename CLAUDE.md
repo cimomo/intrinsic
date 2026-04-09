@@ -67,7 +67,7 @@ Located in `DCFAssumptions` dataclass (`dcf.py`):
 - Risk-free rate: 4.5% (10-year Treasury)
 - Market risk premium: 5%
 - Tax rate: 21% (marginal; effective_tax_rate transitions to marginal over projection period when set)
-- Cost of debt: 5%
+- Cost of debt: 5% (pre-tax default; calibrate derives from credit rating + Damodaran spread)
 - Terminal ROIC: defaults to WACC (no excess returns in perpetuity; override for wide-moat companies)
 - Cost of capital: None (compute WACC from components; set to override with manual hurdle rate)
 

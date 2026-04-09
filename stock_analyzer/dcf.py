@@ -30,7 +30,7 @@ class DCFAssumptions:
 
     # Capital structure
     debt_to_equity_ratio: Optional[float] = None  # Use company D/E if None
-    cost_of_debt: float = 0.05  # Pre-tax cost of debt
+    cost_of_debt: float = 0.05  # Pre-tax; calibrate replaces with rating-based estimate
 
     # Projection period
     projection_years: int = 10  # Years to project FCF (includes 5-year tapering period)
