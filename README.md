@@ -65,9 +65,9 @@ After all assumptions are set, three checks run:
 
 ### 4. Value
 
-Projects free cash flows over 10 years, discounts them back to today, and calculates what the stock is worth. You get a fair value estimate, a range showing how it shifts under different assumptions, and a recommendation.
+Projects free cash flows over 10 years, discounts them back to today, and calculates what the stock is worth. You get a fair value estimate, a range showing how it shifts under different assumptions, and a valuation assessment.
 
-The recommendation is **confidence-adjusted** — the tool downgrades its own output when the research inputs are uncertain. A stock showing 20% upside would normally be a BUY, but if research confidence is Medium, it becomes a HOLD. When upside is near zero: "your assumptions produce no margin of safety."
+The assessment is **confidence-adjusted** — the tool downgrades its own output when the research inputs are uncertain. A stock showing 20% upside would normally be Undervalued, but if research confidence is Medium, it becomes Fairly Valued. When upside is near zero: "your assumptions produce no margin of safety."
 
 ### 5. Report
 
@@ -75,7 +75,7 @@ Synthesizes everything into an opinionated verdict:
 
 - **What You're Paying For** — your manual overrides framed as a specific thesis. What do you believe that the market doesn't?
 - **Alignment Check** — do your assumptions actually match the research? Bullish growth assumption + Decelerating signal with Low confidence = flagged disconnect.
-- **Where You're Most Exposed** — the one assumption that flips the recommendation if wrong, with the specific threshold.
+- **Where You're Most Exposed** — the one assumption that flips the assessment if wrong, with the specific threshold.
 - **What Would Change This** — concrete triggers with timeframes, not "if growth slows."
 
 ## Why not just ask Claude to analyze a stock?
