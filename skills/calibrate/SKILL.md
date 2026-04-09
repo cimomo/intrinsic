@@ -122,7 +122,7 @@ WACC: X.X%
   Weights: XX% equity / XX% debt
 ```
 
-**Hurdle rate override:** After showing the computed WACC, offer the option to override it. This is useful when WACC components have known limitations (e.g., regression beta is noisy, cost of debt is stale).
+**Hurdle rate override:** After showing the computed WACC, offer the option to override it. This is useful when WACC components have known limitations (e.g., regression beta is noisy, spread table may lag market conditions).
 
 **Interactive mode:** "WACC is X.X%. Override with a manual hurdle rate? [Enter to keep computed]"
 
