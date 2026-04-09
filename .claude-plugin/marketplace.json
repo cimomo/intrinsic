@@ -7,7 +7,7 @@
     {
       "name": "intrinsic",
       "description": "Stock analysis with DCF valuation, qualitative research, and investment reporting",
-      "source": ".",
+      "source": "./",
       "category": "productivity"
     }
   ]
