@@ -538,7 +538,7 @@ Damodaran sometimes transitions beta -> 1.0 and D/E -> industry average during t
 
 ### Test count
 
-226 tests. Key additions:
+267 tests. Key additions:
 - 9 ROIC tests (metrics.py edge cases)
 - 10 terminal value tests (g/ROIC reinvestment, terminal ROIC default/override/guards)
 - 4 tax rate transition tests (interpolation, convergence, terminal uses marginal)
@@ -546,6 +546,9 @@ Damodaran sometimes transitions beta -> 1.0 and D/E -> industry average during t
 - 2 integration tests (explicit terminal ROIC, _recalc consistency)
 - 5 WACC tax consistency tests + 6 cost of capital override tests
 - 7 equity bridge tests (investments increase fair value, per-share impact, backward compat, bridge components in results/summary, net cash company, sensitivity table consistency)
+- 19 R&D amortizable life tests (sector/industry mapping, overrides, edge cases)
+- 14 R&D capitalization tests (asset, amortization, NOPAT delta, edge cases, year-N path, Damodaran spreadsheet verification)
+- 9 R&D integration tests (adjusted ROIC in DCF inputs, backward compatibility, NOPAT formula)
 
 ---
 
