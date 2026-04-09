@@ -8,8 +8,8 @@
       "name": "intrinsic",
       "description": "Stock analysis with DCF valuation, qualitative research, and investment reporting",
       "source": {
-        "source": "github",
-        "repo": "cimomo/intrinsic"
+        "source": "url",
+        "url": "https://github.com/cimomo/intrinsic.git"
       },
       "category": "productivity"
     }
