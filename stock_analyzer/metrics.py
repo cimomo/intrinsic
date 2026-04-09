@@ -347,7 +347,8 @@ class FinancialMetrics:
         income_statement: List[Dict],
         balance_sheet: List[Dict],
         cash_flow: List[Dict],
-        overview: Dict
+        overview: Dict,
+        income_annual: Optional[List[Dict]] = None,
     ) -> Dict:
         """
         Extract and calculate inputs needed for DCF valuation
@@ -357,6 +358,10 @@ class FinancialMetrics:
             balance_sheet: Annual balance sheets
             cash_flow: Annual cash flow statements
             overview: Company overview data
+            income_annual: Optional annual income statements for R&D capitalization.
+                When provided, computes adjusted ROIC using Damodaran's R&D
+                capitalization methodology. Backward compatible — callers that omit
+                this parameter receive None for all R&D-adjusted fields.
 
         Returns:
             Dictionary with DCF input parameters
@@ -442,6 +447,33 @@ class FinancialMetrics:
             synthetic_spread = synthetic['default_spread']
         # else: interest_expense is None (missing data) → all stay None
 
+        # R&D capitalization (Damodaran methodology)
+        adjusted_roic = None
+        adjusted_invested_capital = None
+        research_asset = None
+        rd_amortization = None
+        current_rd = None
+        rd_amortizable_life = None
+
+        if income_annual:
+            sector = overview.get("Sector")
+            industry = overview.get("Industry")
+            rd_life = get_rd_amortizable_life(sector, industry)
+            rd_cap = calculate_rd_capitalization(income_annual, rd_life, tax_rate)
+
+            if rd_cap and rd_cap["research_asset"] > 0:
+                research_asset = rd_cap["research_asset"]
+                rd_amortization = rd_cap["amortization"]
+                current_rd = rd_cap["current_rd"]
+                rd_amortizable_life = rd_life
+
+                adjusted_ic = invested_capital + research_asset
+                if adjusted_ic > 0:
+                    nopat_raw = operating_income * (1 - tax_rate)
+                    adjusted_nopat = nopat_raw + rd_cap["adjusted_nopat_delta"]
+                    adjusted_roic = adjusted_nopat / adjusted_ic
+                    adjusted_invested_capital = adjusted_ic
+
         return {
             'revenue': revenue,
             'operating_income': operating_income,
@@ -462,6 +494,12 @@ class FinancialMetrics:
             'interest_coverage': interest_coverage,
             'synthetic_rating': synthetic_rating,
             'synthetic_spread': synthetic_spread,
+            'adjusted_roic': adjusted_roic,
+            'adjusted_invested_capital': adjusted_invested_capital,
+            'research_asset': research_asset,
+            'rd_amortization': rd_amortization,
+            'current_rd': current_rd,
+            'rd_amortizable_life': rd_amortizable_life,
         }
 
     @staticmethod

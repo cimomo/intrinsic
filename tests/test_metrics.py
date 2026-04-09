@@ -684,3 +684,107 @@ class TestCalculateRdCapitalization:
         result = calculate_rd_capitalization(reports, amortizable_life=3, tax_rate=0.21)
         assert result["amortization"] == 0
         assert result["research_asset"] == 50000
+
+
+class TestDCFInputsRdCapitalization:
+    @pytest.fixture
+    def statements_with_rd(self):
+        income = [{
+            "totalRevenue": "200000000000",
+            "operatingIncome": "80000000000",
+            "researchAndDevelopment": "30000000000",
+            "incomeTaxExpense": "16000000000",
+            "incomeBeforeTax": "80000000000",
+        }]
+        income_annual = [
+            {"fiscalDateEnding": "2024-06-30", "researchAndDevelopment": "30000000000"},
+            {"fiscalDateEnding": "2023-06-30", "researchAndDevelopment": "25000000000"},
+            {"fiscalDateEnding": "2022-06-30", "researchAndDevelopment": "20000000000"},
+        ]
+        balance = [{
+            "totalShareholderEquity": "100000000000",
+            "shortLongTermDebtTotal": "50000000000",
+            "cashAndCashEquivalentsAtCarryingValue": "20000000000",
+            "shortTermInvestments": "10000000000",
+            "longTermInvestments": "5000000000",
+            "totalAssets": "300000000000",
+        }]
+        cashflow = [{"operatingCashflow": "90000000000", "capitalExpenditures": "-15000000000"}]
+        overview = {"MarketCapitalization": "2000000000000", "Beta": "1.1",
+                    "Sector": "Technology", "Industry": "Software—Infrastructure"}
+        return income, income_annual, balance, cashflow, overview
+
+    def test_adjusted_roic_present(self, statements_with_rd):
+        income, income_annual, balance, cashflow, overview = statements_with_rd
+        inputs = FinancialMetrics.calculate_dcf_inputs(
+            income, balance, cashflow, overview, income_annual=income_annual
+        )
+        assert "adjusted_roic" in inputs
+        assert inputs["adjusted_roic"] is not None
+
+    def test_adjusted_roic_differs_from_raw(self, statements_with_rd):
+        income, income_annual, balance, cashflow, overview = statements_with_rd
+        inputs = FinancialMetrics.calculate_dcf_inputs(
+            income, balance, cashflow, overview, income_annual=income_annual
+        )
+        assert inputs["adjusted_roic"] != inputs["roic"]
+
+    def test_research_asset_in_output(self, statements_with_rd):
+        income, income_annual, balance, cashflow, overview = statements_with_rd
+        inputs = FinancialMetrics.calculate_dcf_inputs(
+            income, balance, cashflow, overview, income_annual=income_annual
+        )
+        assert inputs["research_asset"] > 0
+
+    def test_adjusted_invested_capital_includes_asset(self, statements_with_rd):
+        income, income_annual, balance, cashflow, overview = statements_with_rd
+        inputs = FinancialMetrics.calculate_dcf_inputs(
+            income, balance, cashflow, overview, income_annual=income_annual
+        )
+        assert inputs["adjusted_invested_capital"] == inputs["invested_capital"] + inputs["research_asset"]
+
+    def test_rd_amortizable_life_from_sector(self, statements_with_rd):
+        income, income_annual, balance, cashflow, overview = statements_with_rd
+        inputs = FinancialMetrics.calculate_dcf_inputs(
+            income, balance, cashflow, overview, income_annual=income_annual
+        )
+        assert inputs["rd_amortizable_life"] == 3
+
+    def test_semiconductor_gets_5_year_life(self, statements_with_rd):
+        income, income_annual, balance, cashflow, overview = statements_with_rd
+        overview["Industry"] = "Semiconductors"
+        inputs = FinancialMetrics.calculate_dcf_inputs(
+            income, balance, cashflow, overview, income_annual=income_annual
+        )
+        assert inputs["rd_amortizable_life"] == 5
+
+    def test_no_income_annual_no_rd_adjustment(self, statements_with_rd):
+        income, _, balance, cashflow, overview = statements_with_rd
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, cashflow, overview)
+        assert inputs["adjusted_roic"] is None
+        assert inputs["research_asset"] is None
+
+    def test_backward_compatible_no_income_annual(self):
+        income = [{"totalRevenue": "100000", "operatingIncome": "30000"}]
+        balance = [{"totalShareholderEquity": "80000", "shortLongTermDebtTotal": "20000",
+                    "cashAndCashEquivalentsAtCarryingValue": "10000"}]
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, [{}], {})
+        assert inputs["roic"] is not None
+        assert inputs["adjusted_roic"] is None
+
+    def test_adjusted_nopat_formula(self, statements_with_rd):
+        """Adjusted NOPAT = EBIT(1-t) + R&D - Amortization"""
+        income, income_annual, balance, cashflow, overview = statements_with_rd
+        inputs = FinancialMetrics.calculate_dcf_inputs(
+            income, balance, cashflow, overview, income_annual=income_annual
+        )
+        # Tax rate = 16B / 80B = 0.20
+        # NOPAT = 80B * 0.80 = 64B
+        # R&D = 30B, Amort = (25B + 20B) / 3 = 15B
+        # Adjusted NOPAT = 64B + 30B - 15B = 79B
+        # Research asset = 30B + 25B*2/3 + 20B/3 = 53.333B
+        # Adjusted IC = 115B + 53.333B = 168.333B
+        # Adjusted ROIC = 79B / 168.333B
+        expected_nopat = 64e9 + 30e9 - 15e9
+        expected_ic = 115e9 + (30e9 + 25e9 * 2 / 3 + 20e9 / 3)
+        assert inputs["adjusted_roic"] == pytest.approx(expected_nopat / expected_ic, rel=1e-4)
