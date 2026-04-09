@@ -9,6 +9,133 @@ from dataclasses import dataclass
 from .utils import safe_float
 
 
+# Damodaran's synthetic credit rating tables
+# Source: https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ratings.html
+# Updated: January 2026 (large firms), January 2017 (small firms)
+# Format: (min_coverage, rating, spread)
+# Sorted descending by coverage threshold — first match wins.
+
+SYNTHETIC_RATING_TABLE_LARGE = [
+    (8.50, "Aaa/AAA", 0.0040),
+    (6.50, "Aa2/AA",  0.0055),
+    (5.50, "A1/A+",   0.0070),
+    (4.25, "A2/A",    0.0078),
+    (3.00, "A3/A-",   0.0089),
+    (2.50, "Baa2/BBB", 0.0111),
+    (2.25, "Ba1/BB+", 0.0138),
+    (2.00, "Ba2/BB",  0.0184),
+    (1.75, "B1/B+",   0.0275),
+    (1.50, "B2/B",    0.0321),
+    (1.25, "B3/B-",   0.0509),
+    (0.80, "Caa/CCC", 0.0885),
+    (0.65, "Ca2/CC",  0.1261),
+    (0.20, "C2/C",    0.1600),
+]
+SYNTHETIC_RATING_DEFAULT_LARGE = ("D2/D", 0.1900)
+
+SYNTHETIC_RATING_TABLE_SMALL = [
+    (12.50, "Aaa/AAA", 0.0060),
+    (9.50,  "Aa2/AA",  0.0080),
+    (7.50,  "A1/A+",   0.0100),
+    (6.00,  "A2/A",    0.0110),
+    (4.50,  "A3/A-",   0.0125),
+    (4.00,  "Baa2/BBB", 0.0160),
+    (3.50,  "Ba1/BB+", 0.0250),
+    (3.00,  "Ba2/BB",  0.0300),
+    (2.50,  "B1/B+",   0.0375),
+    (2.00,  "B2/B",    0.0450),
+    (1.50,  "B3/B-",   0.0550),
+    (1.25,  "Caa/CCC", 0.0650),
+    (0.80,  "Ca2/CC",  0.0800),
+    (0.50,  "C2/C",    0.1050),
+]
+SYNTHETIC_RATING_DEFAULT_SMALL = ("D2/D", 0.1400)
+
+SMALL_FIRM_MARKET_CAP_THRESHOLD = 5_000_000_000  # $5B
+
+# Actual credit rating to default spread mapping (large-firm spreads).
+# Agency ratings already incorporate firm size, so large-firm spreads are
+# appropriate regardless of market cap. Sub-notches within a Damodaran
+# bucket map to the same spread.
+RATING_TO_SPREAD = {
+    # S&P notation
+    "AAA": 0.0040,
+    "AA+": 0.0055, "AA": 0.0055, "AA-": 0.0055,
+    "A+": 0.0070,  "A": 0.0078,  "A-": 0.0089,
+    "BBB+": 0.0111, "BBB": 0.0111, "BBB-": 0.0111,
+    "BB+": 0.0138, "BB": 0.0184, "BB-": 0.0184,
+    "B+": 0.0275,  "B": 0.0321,  "B-": 0.0509,
+    "CCC": 0.0885, "CC": 0.1261, "C": 0.1600, "D": 0.1900,
+    # Moody's notation
+    "Aaa": 0.0040,
+    "Aa1": 0.0055, "Aa2": 0.0055, "Aa3": 0.0055,
+    "A1": 0.0070,  "A2": 0.0078,  "A3": 0.0089,
+    "Baa1": 0.0111, "Baa2": 0.0111, "Baa3": 0.0111,
+    "Ba1": 0.0138, "Ba2": 0.0184, "Ba3": 0.0184,
+    "B1": 0.0275,  "B2": 0.0321,  "B3": 0.0509,
+    "Caa1": 0.0885, "Caa2": 0.0885, "Caa3": 0.0885,
+    "Ca": 0.1261,
+}
+
+
+def get_synthetic_rating(coverage_ratio: float, market_cap: float) -> dict:
+    """
+    Map interest coverage ratio to synthetic credit rating and default spread.
+
+    Uses Damodaran's lookup tables, auto-selecting large-firm or small-firm
+    table based on market cap (threshold: $5B).
+
+    Args:
+        coverage_ratio: EBIT / Interest Expense
+        market_cap: Company market capitalization in dollars
+
+    Returns:
+        Dict with 'rating', 'default_spread', 'coverage_ratio', 'firm_size'
+    """
+    if market_cap >= SMALL_FIRM_MARKET_CAP_THRESHOLD:
+        table = SYNTHETIC_RATING_TABLE_LARGE
+        default = SYNTHETIC_RATING_DEFAULT_LARGE
+        firm_size = "large"
+    else:
+        table = SYNTHETIC_RATING_TABLE_SMALL
+        default = SYNTHETIC_RATING_DEFAULT_SMALL
+        firm_size = "small"
+
+    for min_coverage, rating, spread in table:
+        if coverage_ratio >= min_coverage:
+            return {
+                "rating": rating,
+                "default_spread": spread,
+                "coverage_ratio": coverage_ratio,
+                "firm_size": firm_size,
+            }
+
+    rating, spread = default
+    return {
+        "rating": rating,
+        "default_spread": spread,
+        "coverage_ratio": coverage_ratio,
+        "firm_size": firm_size,
+    }
+
+
+def get_spread_for_rating(rating: str) -> Optional[float]:
+    """
+    Map an actual credit rating to its default spread.
+
+    Accepts both S&P (AAA, AA+, etc.) and Moody's (Aaa, Aa1, etc.) notation.
+    Uses the large-firm spread table — agency ratings already incorporate
+    firm size, so applying small-firm spreads would double-count the size penalty.
+
+    Args:
+        rating: Credit rating string (e.g., "AA+", "Aa2")
+
+    Returns:
+        Default spread as a decimal (e.g., 0.0055), or None if rating not recognized
+    """
+    return RATING_TO_SPREAD.get(rating)
+
+
 @dataclass
 class CompanyMetrics:
     """Container for company financial metrics"""

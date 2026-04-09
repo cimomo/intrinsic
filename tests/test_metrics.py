@@ -1,7 +1,11 @@
 """Tests for stock_analyzer.metrics"""
 
 import pytest
-from stock_analyzer.metrics import FinancialMetrics, CompanyMetrics
+from stock_analyzer.metrics import (
+    FinancialMetrics, CompanyMetrics,
+    get_synthetic_rating, get_spread_for_rating,
+    SYNTHETIC_RATING_TABLE_LARGE, RATING_TO_SPREAD,
+)
 
 
 # --- Parse Overview ---
@@ -218,6 +222,109 @@ class TestCalculateDCFInputs:
         # NOPAT = 20K * (1 - 0.21) = 15.8K
         # Invested Capital = 90K
         assert inputs['roic'] == pytest.approx(15800 / 90000)
+
+
+# --- Synthetic Credit Rating ---
+
+class TestGetSyntheticRating:
+    def test_large_firm_aaa(self):
+        """Coverage > 8.5 for large firm -> Aaa/AAA"""
+        result = get_synthetic_rating(coverage_ratio=57.2, market_cap=100e9)
+        assert result['rating'] == 'Aaa/AAA'
+        assert result['default_spread'] == 0.0040
+        assert result['firm_size'] == 'large'
+
+    def test_large_firm_bbb(self):
+        """Coverage 2.5-3.0 for large firm -> Baa2/BBB"""
+        result = get_synthetic_rating(coverage_ratio=2.7, market_cap=10e9)
+        assert result['rating'] == 'Baa2/BBB'
+        assert result['default_spread'] == 0.0111
+
+    def test_large_firm_boundary_exact(self):
+        """Exact boundary value (8.50) -> Aaa/AAA (inclusive lower bound)"""
+        result = get_synthetic_rating(coverage_ratio=8.50, market_cap=10e9)
+        assert result['rating'] == 'Aaa/AAA'
+
+    def test_large_firm_just_below_boundary(self):
+        """Just below 8.50 -> Aa2/AA"""
+        result = get_synthetic_rating(coverage_ratio=8.49, market_cap=10e9)
+        assert result['rating'] == 'Aa2/AA'
+
+    def test_small_firm_same_coverage_different_rating(self):
+        """Same coverage (9.0) yields A1/A+ for small firm but Aaa/AAA for large"""
+        large = get_synthetic_rating(coverage_ratio=9.0, market_cap=10e9)
+        small = get_synthetic_rating(coverage_ratio=9.0, market_cap=3e9)
+        assert large['rating'] == 'Aaa/AAA'
+        assert small['rating'] == 'A1/A+'
+
+    def test_small_firm_higher_spread(self):
+        """Small firm AAA spread (0.60%) > large firm AAA spread (0.40%)"""
+        small = get_synthetic_rating(coverage_ratio=13.0, market_cap=3e9)
+        large = get_synthetic_rating(coverage_ratio=13.0, market_cap=10e9)
+        assert small['default_spread'] == 0.0060
+        assert large['default_spread'] == 0.0040
+
+    def test_market_cap_threshold(self):
+        """$5B is the cutoff — at $5B use large table, below use small"""
+        at_threshold = get_synthetic_rating(coverage_ratio=9.0, market_cap=5e9)
+        below_threshold = get_synthetic_rating(coverage_ratio=9.0, market_cap=4.99e9)
+        assert at_threshold['firm_size'] == 'large'
+        assert below_threshold['firm_size'] == 'small'
+
+    def test_zero_interest_expense_infinite_coverage(self):
+        """Debt-free company (infinite coverage) -> AAA"""
+        result = get_synthetic_rating(coverage_ratio=float('inf'), market_cap=10e9)
+        assert result['rating'] == 'Aaa/AAA'
+        assert result['default_spread'] == 0.0040
+
+    def test_negative_coverage_d_rating(self):
+        """Negative EBIT -> negative coverage -> D rating"""
+        result = get_synthetic_rating(coverage_ratio=-2.0, market_cap=10e9)
+        assert result['rating'] == 'D2/D'
+        assert result['default_spread'] == 0.1900
+
+    def test_zero_coverage_d_rating(self):
+        """Zero coverage -> D rating"""
+        result = get_synthetic_rating(coverage_ratio=0.0, market_cap=10e9)
+        assert result['rating'] == 'D2/D'
+
+    def test_returns_coverage_ratio(self):
+        """Result includes the input coverage ratio"""
+        result = get_synthetic_rating(coverage_ratio=5.0, market_cap=10e9)
+        assert result['coverage_ratio'] == 5.0
+
+
+class TestGetSpreadForRating:
+    def test_sp_aaa(self):
+        assert get_spread_for_rating("AAA") == 0.0040
+
+    def test_moodys_aaa(self):
+        assert get_spread_for_rating("Aaa") == 0.0040
+
+    def test_sp_aa_plus(self):
+        assert get_spread_for_rating("AA+") == 0.0055
+
+    def test_moodys_aa2(self):
+        assert get_spread_for_rating("Aa2") == 0.0055
+
+    def test_sp_a(self):
+        assert get_spread_for_rating("A") == 0.0078
+
+    def test_sp_bbb_minus(self):
+        assert get_spread_for_rating("BBB-") == 0.0111
+
+    def test_moodys_ba1(self):
+        assert get_spread_for_rating("Ba1") == 0.0138
+
+    def test_unknown_rating_returns_none(self):
+        assert get_spread_for_rating("XYZ") is None
+
+    def test_empty_string_returns_none(self):
+        assert get_spread_for_rating("") is None
+
+    def test_case_sensitive(self):
+        """Ratings are case-sensitive — 'aaa' is not 'AAA'"""
+        assert get_spread_for_rating("aaa") is None
 
 
 # --- Format Metrics ---
