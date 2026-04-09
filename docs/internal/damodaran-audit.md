@@ -491,7 +491,7 @@ Damodaran sometimes transitions beta -> 1.0 and D/E -> industry average during t
 | 12 | Cyclical earnings normalization | 2 | MEDIUM | TODO | |
 | 12b | Value decomposition (assets in place vs growth) | 2 | LOW-MEDIUM | TODO | Sanity check: what % of value comes from growth? |
 | 12c | Implied revenue / TAM check | 2 | LOW-MEDIUM | TODO | Sanity check: is year-10 revenue plausible? |
-| 13 | R&D capitalization | 3 | MEDIUM-HIGH | TODO | |
+| 13 | R&D capitalization | 3 | MEDIUM-HIGH | **DONE** | Pre-tax asset per Damodaran R&DConv.xls, industry amortizable life, adjusted ROIC in calibrate/value |
 | 14 | Industry base rate comparisons | 3 | MEDIUM | TODO | |
 | 15 | Financial services warning | 3 | MEDIUM | TODO | |
 | 16 | Distress probability adjustment | 3 | LOW-MEDIUM | TODO | |
@@ -531,7 +531,10 @@ Damodaran sometimes transitions beta -> 1.0 and D/E -> industry average during t
 
 ### Phase 3 — Structural adjustments (items 13-19)
 
-Not started. Higher effort, most impactful for specific company types.
+**DONE (1 of 7):**
+- Item 13: R&D capitalization per Damodaran's R&DConv.xls. Pre-tax research asset with straight-line amortization, industry-specific amortizable life (3yr software, 5yr semi, 10yr pharma). Adjusted ROIC flows into calibrate coherence checks and terminal ROIC anchoring. FCF unchanged.
+
+**Remaining:** Items 14-19 (industry base rates, financial services warning, distress, leases, country risk, multi-stage WACC).
 
 ### Test count
 
