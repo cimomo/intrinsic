@@ -21,6 +21,7 @@ PYTHONPATH="${CLAUDE_PLUGIN_ROOT:-.}" python3 -c "from stock_analyzer import ...
   - **If `was_loaded` is True:** "Using calibrated assumptions" + show which are manual overrides (e.g., "2 manual overrides: revenue_growth_rate, sales_to_capital_ratio")
   - **If `was_loaded` is False:** "Using default assumptions — consider running /calibrate first"
 - Display the loaded assumptions summary
+- When calling `FinancialMetrics.calculate_dcf_inputs()`, pass `income_annual=` with the annual income statement reports from cached data (`financial_data['data']['income_statement_annual']['reports']`). This enables R&D capitalization for adjusted ROIC.
 - Try `StockManager.load_financial_data("$ARGUMENTS")` to check for cached data
 - **If cached data exists:** Use it (display "Using cached data from {fetched_at}")
 - **If no cached data:** Invoke `/fetch $ARGUMENTS` first, then load the cached data
@@ -31,7 +32,11 @@ PYTHONPATH="${CLAUDE_PLUGIN_ROOT:-.}" python3 -c "from stock_analyzer import ...
 - Use `stock_analyzer.metrics.FinancialMetrics` to parse and format the data
 - Show:
   - Valuation metrics (P/E, PEG, P/B, etc.)
-  - Profitability metrics (margins, ROIC, ROE, ROA). ROIC is returned by `calculate_dcf_inputs()` — set it on the `CompanyMetrics` object: `metrics.roic = dcf_inputs['roic']`
+  - Profitability metrics (margins, ROIC, ROE, ROA). Set ROIC on the `CompanyMetrics` object:
+    - If `dcf_inputs['adjusted_roic']` is available: `metrics.roic = dcf_inputs['adjusted_roic']`
+    - Display both: "ROIC: X.X% (R&D capitalized, Y-year amortization) | Unadjusted: Z.Z%"
+    - Show research asset: "Research Asset: $XXB | R&D/Revenue: X.X%"
+    - If no R&D data: `metrics.roic = dcf_inputs['roic']` (same as before)
   - Growth rates
   - Financial health indicators
   - Per-share metrics

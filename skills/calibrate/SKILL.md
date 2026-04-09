@@ -55,6 +55,7 @@ Strip `--auto` from the ticker symbol (e.g., `MSFT --auto` → ticker is `MSFT`)
 - Initialize `StockManager` and load existing assumptions for **$ARGUMENTS**
 - Load `_manual_overrides` via `StockManager.load_manual_overrides(symbol)`
 - Load cached financial data via `StockManager.load_financial_data()` if available
+- When calling `FinancialMetrics.calculate_dcf_inputs()`, pass `income_annual=` with the annual income statement reports from cached data (`financial_data['data']['income_statement_annual']['reports']`). This enables R&D capitalization for adjusted ROIC.
 - Display the current assumptions file contents
 
 ### 1b. Load Research Context (if available)
@@ -200,7 +201,7 @@ Go through these in order:
 Terminal ROIC determines how much the company must reinvest to sustain terminal growth. It is the single most impactful assumption on terminal value — the difference between ROIC = WACC and ROIC = 20% can swing fair value by 20-40%.
 
 **Anchors — always show these before recommending:**
-- **Current ROIC** from `calculate_dcf_inputs()` (returned as `dcf_inputs['roic']`)
+- **Current ROIC** from `calculate_dcf_inputs()`: use `dcf_inputs['adjusted_roic']` if available (R&D capitalized), else `dcf_inputs['roic']`
 - **WACC** from step 4 (the floor — no competitive advantage persists)
 - **Implied ROIC from model assumptions:** `operating_margin × sales_to_capital × (1 - tax_rate)`. This is what the DCF's own year-10 numbers imply, and represents the ROIC if current operating efficiency continues.
 - **Constraint:** Terminal ROIC must be >= terminal growth rate (otherwise reinvestment > 100%)
@@ -250,7 +251,16 @@ Terminal ROIC:
 
 After all assumptions are set, step back and review them as a whole. This is a reasoning step — no new data or web searches needed.
 
-**ROIC context:** Before running consistency checks, compute ROIC from `calculate_dcf_inputs()` (returned as `dcf_inputs['roic']`). Display it: "Current ROIC: X.X% | WACC: Y.Y% | Spread: Z.Z%". This anchors the checks below.
+**ROIC context:** Before running consistency checks, get ROIC from `calculate_dcf_inputs()`. If `dcf_inputs['adjusted_roic']` is available (R&D capitalized), use it as the primary ROIC for all checks below. Display:
+
+```
+Current ROIC: X.X% (with R&D capitalized, Y-year amortization)
+  Unadjusted ROIC: Z.Z% (R&D as operating expense)
+  Research asset: $XXB
+  WACC: W.W% | Spread: S.S%
+```
+
+If `adjusted_roic` is None (no R&D data), fall back to `dcf_inputs['roic']` and display as before. The adjusted ROIC reflects the true return on all capital deployed, including intangible R&D capital. Use it for the value-of-growth check and fundamental growth check below.
 
 **Cross-assumption consistency:** Do the assumptions make sense together?
 - **Value of growth:** If ROIC < WACC, growth destroys value — higher growth makes the stock *less* valuable. Flag prominently: "ROIC (X%) is below WACC (Y%). At these returns, growth destroys value. Either ROIC must improve (higher margins or better capital efficiency) or the growth assumption is working against you."
