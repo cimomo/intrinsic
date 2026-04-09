@@ -327,6 +327,92 @@ class TestGetSpreadForRating:
         assert get_spread_for_rating("aaa") is None
 
 
+class TestInterestCoverageAndSyntheticDebt:
+    @pytest.fixture
+    def statements_with_interest(self):
+        income = [{
+            'totalRevenue': '400000000000',
+            'operatingIncome': '120000000000',
+            'interestExpense': '2500000000',
+        }]
+        balance = [{
+            'shortLongTermDebtTotal': '100000000000',
+            'cashAndCashEquivalentsAtCarryingValue': '60000000000',
+            'totalShareholderEquity': '200000000000',
+            'totalAssets': '350000000000',
+        }]
+        overview = {'MarketCapitalization': '2500000000000', 'Beta': '1.2'}
+        return income, balance, [{}], overview
+
+    def test_interest_expense_extracted(self, statements_with_interest):
+        income, balance, cashflow, overview = statements_with_interest
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, cashflow, overview)
+        assert inputs['interest_expense'] == 2_500_000_000
+
+    def test_interest_coverage_computed(self, statements_with_interest):
+        income, balance, cashflow, overview = statements_with_interest
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, cashflow, overview)
+        # 120B / 2.5B = 48.0
+        assert inputs['interest_coverage'] == pytest.approx(48.0)
+
+    def test_synthetic_rating_in_dcf_inputs(self, statements_with_interest):
+        income, balance, cashflow, overview = statements_with_interest
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, cashflow, overview)
+        # Coverage 48.0, market cap $2.5T -> large firm -> Aaa/AAA
+        assert inputs['synthetic_rating'] == 'Aaa/AAA'
+        assert inputs['synthetic_spread'] == 0.0040
+
+    def test_zero_interest_expense(self):
+        """Debt-free company -> infinite coverage -> AAA"""
+        income = [{'totalRevenue': '100000', 'operatingIncome': '30000',
+                   'interestExpense': '0'}]
+        balance = [{'totalShareholderEquity': '80000'}]
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, [{}],
+                    {'MarketCapitalization': '10000000000'})
+        assert inputs['interest_coverage'] == float('inf')
+        assert inputs['synthetic_rating'] == 'Aaa/AAA'
+
+    def test_missing_interest_expense(self):
+        """No interest expense field -> None for all synthetic fields"""
+        income = [{'totalRevenue': '100000', 'operatingIncome': '30000'}]
+        balance = [{'totalShareholderEquity': '80000'}]
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, [{}], {})
+        assert inputs['interest_expense'] is None
+        assert inputs['interest_coverage'] is None
+        assert inputs['synthetic_rating'] is None
+        assert inputs['synthetic_spread'] is None
+
+    def test_negative_operating_income(self):
+        """Negative EBIT -> negative coverage -> D rating"""
+        income = [{'totalRevenue': '100000', 'operatingIncome': '-20000',
+                   'interestExpense': '5000'}]
+        balance = [{'totalShareholderEquity': '80000'}]
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, [{}],
+                    {'MarketCapitalization': '10000000000'})
+        assert inputs['interest_coverage'] == pytest.approx(-4.0)
+        assert inputs['synthetic_rating'] == 'D2/D'
+
+    def test_small_firm_synthetic_rating(self):
+        """Small firm ($2B) uses different table"""
+        income = [{'totalRevenue': '5000000000', 'operatingIncome': '500000000',
+                   'interestExpense': '100000000'}]
+        balance = [{'totalShareholderEquity': '2000000000'}]
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, [{}],
+                    {'MarketCapitalization': '2000000000'})
+        # Coverage = 5.0, market cap $2B -> small firm -> A3/A- (4.50-6.00 range)
+        assert inputs['synthetic_rating'] == 'A3/A-'
+        assert inputs['synthetic_spread'] == 0.0125
+
+    def test_interest_expense_none_string(self):
+        """Alpha Vantage returns 'None' string for missing fields"""
+        income = [{'totalRevenue': '100000', 'operatingIncome': '30000',
+                   'interestExpense': 'None'}]
+        balance = [{'totalShareholderEquity': '80000'}]
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, [{}], {})
+        assert inputs['interest_expense'] is None
+        assert inputs['interest_coverage'] is None
+
+
 # --- Format Metrics ---
 
 class TestFormatMetrics:

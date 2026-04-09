@@ -238,6 +238,7 @@ class FinancialMetrics:
         # Extract key figures
         revenue = safe_float(latest_income.get('totalRevenue'), 0)
         operating_income = safe_float(latest_income.get('operatingIncome'), 0)
+        interest_expense = safe_float(latest_income.get('interestExpense'))
 
         # Try to get total debt from various possible field names
         total_debt = safe_float(latest_balance.get('shortLongTermDebtTotal'), 0)
@@ -292,6 +293,23 @@ class FinancialMetrics:
             nopat = operating_income * (1 - tax_rate)
             roic = nopat / invested_capital
 
+        # Interest coverage and synthetic credit rating
+        interest_coverage = None
+        synthetic_rating = None
+        synthetic_spread = None
+        if interest_expense is not None and interest_expense > 0:
+            interest_coverage = operating_income / interest_expense
+            synthetic = get_synthetic_rating(interest_coverage, market_cap)
+            synthetic_rating = synthetic['rating']
+            synthetic_spread = synthetic['default_spread']
+        elif interest_expense == 0:
+            # Debt-free company — infinite coverage → best rating
+            interest_coverage = float('inf')
+            synthetic = get_synthetic_rating(float('inf'), market_cap)
+            synthetic_rating = synthetic['rating']
+            synthetic_spread = synthetic['default_spread']
+        # else: interest_expense is None (missing data) → all stay None
+
         return {
             'revenue': revenue,
             'operating_income': operating_income,
@@ -308,6 +326,10 @@ class FinancialMetrics:
             'total_assets': total_assets,
             'roic': roic,
             'invested_capital': invested_capital,
+            'interest_expense': interest_expense,
+            'interest_coverage': interest_coverage,
+            'synthetic_rating': synthetic_rating,
+            'synthetic_spread': synthetic_spread,
         }
 
     @staticmethod
