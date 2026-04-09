@@ -135,7 +135,47 @@ ROIC appears throughout the model:
 - **Value-of-growth check** — if ROIC < WACC, growth destroys value
 - **Terminal ROIC selection** — moat strength determines how much excess return persists in perpetuity
 
-Current ROIC uses GAAP operating income, which includes R&D as an expense. For R&D-heavy tech companies, this understates ROIC compared to an R&D-capitalized approach — see [Known limitations](#known-limitations).
+Two ROIC values are computed: **unadjusted** (GAAP operating income, R&D as expense) and **adjusted** (R&D capitalized per Damodaran). For R&D-heavy companies, the adjusted ROIC is the primary measure — it reflects the true return on all capital deployed, including intangible R&D capital. See [R&D capitalization](#rd-capitalization) for the full methodology.
+
+---
+
+## R&D capitalization
+
+GAAP treats R&D as an operating expense. For valuation, Damodaran treats it as a capital expenditure — building an intangible research asset on the balance sheet and amortizing it over the product's commercial life. This adjustment produces a more accurate ROIC without changing free cash flow.
+
+**Research asset** — straight-line amortization over N years, using pre-tax R&D (verified from Damodaran's R&DConv.xls spreadsheet):
+
+```
+Research Asset = Sum of R&D[year-i] × (N-i)/N   for i = 0 to N-1
+```
+
+The current year's R&D enters at 100% with zero amortization. Each prior year decays by 1/N. Year -N is fully amortized out (0 in asset) but contributes its final R&D/N to current-year amortization.
+
+**Adjusted NOPAT:**
+
+```
+Adjusted NOPAT = EBIT(1-t) + R&D - Amortization
+```
+
+R&D and amortization enter at full pre-tax values. This works because R&D remains fully tax-deductible regardless of the valuation reclassification — taxes paid don't change. The "ignored tax benefit" (= (R&D - Amort) × t) is naturally captured.
+
+**Adjusted Invested Capital:**
+
+```
+Adjusted IC = Equity + Debt - Cash - Investments + Research Asset
+```
+
+**FCF is unchanged.** R&D added back to NOPAT and R&D added to CapEx cancel exactly. What changes: NOPAT, invested capital, and ROIC — which flow into terminal reinvestment (g/ROIC), the fundamental growth check, and the value-of-growth check.
+
+**Amortizable life by industry** (from Damodaran's R&DConv.xls):
+
+| Industry | Life | Rationale |
+|---|---|---|
+| Software, Internet | 3 years | Short product cycles |
+| Semiconductors, Electronics | 5 years | Moderate cycles |
+| Pharma, Aerospace, Chemicals | 10 years | Long development/approval timelines |
+
+The industry is determined from Alpha Vantage sector/industry data, with overrides for cases where the sector default is wrong (e.g., semiconductors within Technology).
 
 ---
 
@@ -326,8 +366,6 @@ The model is a work in progress. These are the most significant simplifications:
 **Static equity risk premium.** The default (5.0%) is a historical average. A forward-looking implied ERP, derived from current market pricing and expected cash flows, better reflects current risk appetite. Damodaran publishes this monthly — his January 2026 estimate is 4.23%, meaning the default overstates cost of equity and depresses fair value.
 
 **Cost of debt approximation.** Cost of debt is derived from credit ratings (actual or synthetic) mapped to default spreads from Damodaran's annual lookup table. The synthetic approach relies solely on interest coverage ratio and may not capture all factors that rating agencies consider. The spread table is a January snapshot, not live market data — during credit crises, actual spreads may be significantly wider. For companies with complex capital structures (convertible debt, structured financing), the single-rating approach may not capture the true borrowing cost.
-
-**No R&D capitalization.** GAAP treats R&D as an operating expense, but for valuation purposes it should be treated as a capital expenditure — adding unamortized R&D back to invested capital and adjusting operating income. Without this adjustment, ROIC is understated by 10-20% for R&D-heavy tech companies, which distorts the terminal value reinvestment calculation.
 
 **No financial services support.** FCFF/WACC is structurally wrong for banks, insurance companies, and financial services firms where debt is a raw material. The model does not currently detect or warn about financial services companies.
 
