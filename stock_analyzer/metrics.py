@@ -137,6 +137,61 @@ def get_spread_for_rating(rating: str) -> Optional[float]:
     return RATING_TO_SPREAD.get(rating)
 
 
+# Damodaran's R&D amortizable life by sector/industry
+# Source: R&DConv.xls lookup table (January 2025 update)
+# Maps Alpha Vantage sector/industry strings to amortization periods
+
+_RD_AMORTIZABLE_LIFE_BY_SECTOR = {
+    "technology": 3,
+    "communication services": 3,
+    "consumer cyclical": 3,
+    "consumer defensive": 3,
+    "financial services": 2,
+    "healthcare": 10,
+    "industrials": 10,
+    "energy": 5,
+    "basic materials": 5,
+    "real estate": 3,
+    "utilities": 10,
+}
+
+# Industry-level overrides (substring match, case-insensitive)
+_RD_AMORTIZABLE_LIFE_INDUSTRY_OVERRIDES = [
+    ("semiconductor", 5),
+    ("health information", 3),
+    ("medical device", 5),
+    ("medical instrument", 5),
+    ("electronic", 5),
+    ("computer hardware", 5),
+    ("scientific instrument", 5),
+]
+
+_RD_AMORTIZABLE_LIFE_DEFAULT = 3
+
+
+def get_rd_amortizable_life(sector: Optional[str], industry: Optional[str]) -> int:
+    """
+    Map Alpha Vantage sector/industry to Damodaran's R&D amortizable life.
+
+    Uses sector as the primary key with industry-level overrides for cases
+    where the sector default is wrong (e.g., semiconductors within Technology).
+
+    Args:
+        sector: Company sector from Alpha Vantage overview (e.g., "Technology")
+        industry: Company industry from Alpha Vantage overview (e.g., "Semiconductors")
+
+    Returns:
+        Amortizable life in years (2, 3, 5, or 10)
+    """
+    industry_lower = (industry or "").lower()
+    for keyword, life in _RD_AMORTIZABLE_LIFE_INDUSTRY_OVERRIDES:
+        if keyword in industry_lower:
+            return life
+
+    sector_lower = (sector or "").lower()
+    return _RD_AMORTIZABLE_LIFE_BY_SECTOR.get(sector_lower, _RD_AMORTIZABLE_LIFE_DEFAULT)
+
+
 @dataclass
 class CompanyMetrics:
     """Container for company financial metrics"""

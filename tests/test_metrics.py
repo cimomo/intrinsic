@@ -6,6 +6,7 @@ from stock_analyzer.metrics import (
     get_synthetic_rating, get_spread_for_rating,
     SYNTHETIC_RATING_TABLE_LARGE, RATING_TO_SPREAD,
 )
+from stock_analyzer.metrics import get_rd_amortizable_life
 
 
 # --- Parse Overview ---
@@ -503,3 +504,57 @@ class TestQuarterlyGrowth:
         ]
         output = FinancialMetrics.calculate_quarterly_growth(quarters)
         assert "QUARTERLY REVENUE GROWTH" in output
+
+
+class TestGetRdAmortizableLife:
+    def test_technology_software_default(self):
+        assert get_rd_amortizable_life("Technology", "Software—Infrastructure") == 3
+
+    def test_technology_semiconductors(self):
+        assert get_rd_amortizable_life("Technology", "Semiconductors") == 5
+
+    def test_technology_semiconductor_equipment(self):
+        assert get_rd_amortizable_life("Technology", "Semiconductor Equipment & Materials") == 5
+
+    def test_healthcare_default_pharma(self):
+        assert get_rd_amortizable_life("Healthcare", "Drug Manufacturers—General") == 10
+
+    def test_healthcare_info_services(self):
+        assert get_rd_amortizable_life("Healthcare", "Health Information Services") == 3
+
+    def test_healthcare_medical_devices(self):
+        assert get_rd_amortizable_life("Healthcare", "Medical Devices") == 5
+
+    def test_industrials(self):
+        assert get_rd_amortizable_life("Industrials", "Aerospace & Defense") == 10
+
+    def test_communication_services(self):
+        assert get_rd_amortizable_life("Communication Services", "Internet Content & Information") == 3
+
+    def test_consumer_cyclical(self):
+        assert get_rd_amortizable_life("Consumer Cyclical", "Auto Manufacturers") == 3
+
+    def test_energy(self):
+        assert get_rd_amortizable_life("Energy", "Oil & Gas Integrated") == 5
+
+    def test_basic_materials(self):
+        assert get_rd_amortizable_life("Basic Materials", "Specialty Chemicals") == 5
+
+    def test_financial_services(self):
+        assert get_rd_amortizable_life("Financial Services", "Banks—Diversified") == 2
+
+    def test_unknown_sector_defaults_to_3(self):
+        assert get_rd_amortizable_life("UnknownSector", "UnknownIndustry") == 3
+
+    def test_none_sector_defaults_to_3(self):
+        assert get_rd_amortizable_life(None, None) == 3
+
+    def test_empty_string_defaults_to_3(self):
+        assert get_rd_amortizable_life("", "") == 3
+
+    def test_case_insensitive_sector(self):
+        assert get_rd_amortizable_life("technology", "Software—Infrastructure") == 3
+        assert get_rd_amortizable_life("TECHNOLOGY", "anything") == 3
+
+    def test_semiconductor_substring_match(self):
+        assert get_rd_amortizable_life("Technology", "Semiconductors & Semiconductor Equipment") == 5
