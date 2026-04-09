@@ -21,7 +21,7 @@ Assumptions are split into three tiers based on how much attention they need:
 
 *Mechanical (auto-derived from data):*
 - Beta (from company overview)
-- Cost of Debt (interest expense / total debt)
+- Cost of Debt (from credit rating + Damodaran default spread)
 - Tax Rate: marginal (21% default) + effective (from income statement; transitions to marginal over projection period)
 
 *Market/fixed (rarely change):*
@@ -67,8 +67,23 @@ Strip `--auto` from the ticker symbol (e.g., `MSFT --auto` → ticker is `MSFT`)
 Derive these from the financial data first, so WACC is established before any judgment calls.
 
 - **Beta:** Use beta from company overview data. Display: "Beta: X.XX (from overview)"
-- **Cost of Debt:** Calculate as interest expense / total debt from financials. Display: "Cost of debt: X.X% (interest expense / total debt)"
-  - **Sanity check:** If cost of debt is more than 100bps below the risk-free rate, flag: "Cost of debt (X.X%) is well below risk-free rate (Y.Y%) — this reflects the blended coupon on legacy debt, not marginal borrowing cost. New issuances are likely at Z%. WACC may be slightly understated." This is informational — don't auto-correct, but ensure the user is aware.
+- **Cost of Debt:** Derive from credit rating and Damodaran's default spread table.
+  1. Read the synthetic rating from `calculate_dcf_inputs()` (fields: `synthetic_rating`, `synthetic_spread`, `interest_coverage`).
+  2. **Web search** for the actual credit rating: search `"{company_name} credit rating S&P Moody's"`. Extract the rating if clearly stated (e.g., "Aaa", "AA+").
+  3. **If actual rating found:** Use `get_spread_for_rating(rating)` to get the spread. Compute cost of debt = risk-free rate + spread. Display:
+     ```
+     Cost of debt: X.X% (Rating — Agency, spread X.XX%)
+       Synthetic cross-check: Rating (coverage X.Xx) — consistent/diverges
+     ```
+     If synthetic and actual diverge (different rating bucket), add: "Note: actual rating considers factors beyond interest coverage"
+  4. **If no actual rating found:** Use synthetic. Display:
+     ```
+     Cost of debt: X.X% (synthetic Rating, coverage X.Xx, spread X.XX%)
+       No agency rating found — using synthetic
+     ```
+  5. Set `cost_of_debt` in assumptions to the computed value.
+  - **Auto mode:** Skip web search, use synthetic only. Display: "Cost of debt: X.X% (synthetic Rating, coverage X.Xx — auto mode, no rating lookup)"
+  - **Manual override:** If `cost_of_debt` is in `_manual_overrides`, keep the user's value: "Cost of debt: keeping manual override at X.X% (Rating suggests Y.Y%)"
 - **Tax Rate (marginal):** Default 21% for US companies. Only change if the company is domiciled in a different tax jurisdiction. Display: "Tax rate (marginal): 21%"
 - **Effective Tax Rate:** Calculate from income statement: tax expense / pre-tax income. Set as `effective_tax_rate` in assumptions. The DCF model transitions from this rate in year 1 to the marginal rate by year 10. Terminal value always uses marginal. Display: "Effective tax rate: X.X% (from income statement) → transitions to 21% marginal"
   - If effective rate is within 2% of marginal, skip the transition — set `effective_tax_rate` to None and note: "Effective rate (X.X%) is close to marginal (21%) — no transition needed"
