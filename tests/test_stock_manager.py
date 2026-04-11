@@ -2,6 +2,7 @@
 
 import json
 import pytest
+from datetime import date, timedelta
 from stock_analyzer.stock_manager import StockManager
 from stock_analyzer.dcf import DCFAssumptions
 
@@ -353,9 +354,6 @@ class TestAssumptionsSummary:
         assert "No assumptions file found" in summary
 
 
-from datetime import date, timedelta
-
-
 class TestMarketDataStaleness:
     """Tests for StockManager.is_market_data_stale()"""
 
@@ -399,3 +397,79 @@ class TestMarketDataStaleness:
         data = {"fetched_at": old}
         assert manager.is_market_data_stale(data, threshold_days=7) is True
         assert manager.is_market_data_stale(data, threshold_days=10) is False
+
+
+class TestSaveMarketData:
+    """Tests for StockManager.save_market_data()"""
+
+    def test_save_creates_file(self, manager):
+        data = {
+            "fetched_at": "2026-04-10",
+            "source": "damodaran.com homepage",
+            "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/home.htm",
+            "risk_free_rate": 0.0432,
+            "implied_erp": {
+                "default_measure": "trailing_12mo_adjusted_payout",
+                "measures": {
+                    "trailing_12mo_adjusted_payout": 0.0467,
+                    "trailing_12mo_cash_yield": 0.0477,
+                }
+            }
+        }
+        path = manager.save_market_data(data)
+        assert path.exists()
+        assert path.name == "_market.json"
+
+    def test_save_round_trips_via_json(self, manager, tmp_path):
+        data = {
+            "fetched_at": "2026-04-10",
+            "risk_free_rate": 0.0432,
+            "implied_erp": {
+                "default_measure": "trailing_12mo_adjusted_payout",
+                "measures": {"trailing_12mo_adjusted_payout": 0.0467}
+            }
+        }
+        path = manager.save_market_data(data)
+        with open(path, 'r') as f:
+            loaded = json.load(f)
+        assert loaded == data
+
+    def test_save_overwrites_existing(self, manager):
+        data_v1 = {
+            "fetched_at": "2026-03-01",
+            "risk_free_rate": 0.0420,
+            "implied_erp": {
+                "default_measure": "trailing_12mo_adjusted_payout",
+                "measures": {"trailing_12mo_adjusted_payout": 0.0423}
+            }
+        }
+        data_v2 = {
+            "fetched_at": "2026-04-10",
+            "risk_free_rate": 0.0432,
+            "implied_erp": {
+                "default_measure": "trailing_12mo_adjusted_payout",
+                "measures": {"trailing_12mo_adjusted_payout": 0.0467}
+            }
+        }
+        manager.save_market_data(data_v1)
+        path = manager.save_market_data(data_v2)
+        with open(path, 'r') as f:
+            loaded = json.load(f)
+        assert loaded["fetched_at"] == "2026-04-10"
+        assert loaded["risk_free_rate"] == 0.0432
+
+    def test_save_creates_base_dir_if_missing(self, tmp_path):
+        # tmp_path exists but we point manager at a nonexistent subdir
+        nested = tmp_path / "new_data_dir"
+        manager = StockManager(base_dir=str(nested))
+        data = {
+            "fetched_at": "2026-04-10",
+            "risk_free_rate": 0.0432,
+            "implied_erp": {
+                "default_measure": "trailing_12mo_adjusted_payout",
+                "measures": {"trailing_12mo_adjusted_payout": 0.0467}
+            }
+        }
+        path = manager.save_market_data(data)
+        assert path.exists()
+        assert nested.exists()

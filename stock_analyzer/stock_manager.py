@@ -57,6 +57,27 @@ class StockManager:
         age_days = (date.today() - fetched_at).days
         return age_days > threshold_days
 
+    def save_market_data(self, data: Dict) -> Path:
+        """
+        Save market data to data/_market.json.
+
+        The caller is responsible for building a valid market data dict
+        (via validated WebFetch output). This method is the trusted write
+        path and does no validation.
+
+        Args:
+            data: Market data dict with keys fetched_at, risk_free_rate,
+                  implied_erp (with default_measure and measures)
+
+        Returns:
+            Path to the saved _market.json file
+        """
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+        market_file = self.base_dir / '_market.json'
+        with open(market_file, 'w') as f:
+            json.dump(data, f, indent=2)
+        return market_file
+
     def get_stock_folder(self, symbol: str) -> Path:
         """
         Get or create the folder for a stock symbol
