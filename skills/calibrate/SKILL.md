@@ -1,6 +1,6 @@
 ---
 name: calibrate
-description: Review and update DCF assumptions for a stock interactively
+description: Review and update DCF assumptions for a stock
 ---
 
 Review and update DCF assumptions for **$ARGUMENTS**.
@@ -406,7 +406,7 @@ Consider:
 
 Display the pre-mortem reasoning. This is informational — it doesn't change assumptions, but it provides important context that gets saved with the calibration output and informs the final report.
 
-After displaying the pre-mortem reasoning, ask: "Does this change your view on any assumptions? [y/N]"
+If the reasoning changes the user's view on any assumption, they can re-run `/calibrate` to revise.
 
 ### 10. Save Updated Assumptions
 - Save via `StockManager.save_assumptions(symbol, assumptions, manual_overrides=overrides)`
