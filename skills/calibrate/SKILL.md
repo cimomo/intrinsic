@@ -286,12 +286,14 @@ Go through these in order:
 - Consider: is margin expanding or contracting? What's a realistic target on the adjusted basis?
 
 **c. Sales-to-Capital Ratio**
-- **Always calculate 5+ years of historical data before recommending.** Compute both:
-  - **Average S/C** = Revenue / Invested Capital (where Invested Capital = Equity + Debt - Cash - Investments)
-  - **Incremental S/C** = ΔRevenue / ΔInvested Capital (year-over-year — this is what the DCF model actually uses)
-- Use web sources if Alpha Vantage doesn't have enough history
-- Present the full historical table to the user before asking for a value
-- Consider: is there a regime change (e.g., capital-light → capital-heavy)? Is the trend improving or deteriorating?
+- **Primary anchor (when `dcf_inputs['adjusted_sales_to_capital']` is present):** Current adjusted S/C (Revenue / Adjusted Invested Capital, where Adjusted Invested Capital includes the research asset) is the anchor. Display as: `"Current S/C: X.Xx adjusted (research asset capitalized) | Y.Yx raw"`. Adjusted is the economic ratio; raw treats R&D as an expense.
+- **Fallback (when adjusted is None — zero-R&D companies):** Display raw S/C only.
+- **Historical trend (raw, directional context):** Always calculate 5+ years of historical raw data. Compute both:
+  - **Raw Average S/C** = Revenue / Invested Capital (Equity + Debt - Cash - Investments)
+  - **Raw Incremental S/C** = ΔRevenue / ΔInvested Capital (year-over-year — this is what the DCF model uses during projection years)
+- Use web sources if Alpha Vantage doesn't have enough history. True multi-year adjusted S/C history is unavailable for the same data-window reason as margin history, so the raw trend table is the best directional signal.
+- Present the full historical table to the user before asking for a value.
+- Consider: is there a regime change (e.g., capital-light → capital-heavy)? Is the trend improving or deteriorating? Pick the target on the adjusted scale.
 
 **d. Terminal ROIC (Competitive Advantage Persistence)**
 
