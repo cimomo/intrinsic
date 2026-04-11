@@ -141,7 +141,11 @@ Two ROIC values are computed: **unadjusted** (GAAP operating income, R&D as expe
 
 ## R&D capitalization
 
-GAAP treats R&D as an operating expense. For valuation, Damodaran treats it as a capital expenditure — building an intangible research asset on the balance sheet and amortizing it over the product's commercial life. This adjustment produces a more accurate ROIC without changing free cash flow.
+GAAP treats R&D as an operating expense. For valuation, Damodaran treats it as a capital expenditure — building an intangible research asset on the balance sheet and amortizing it over the product's commercial life. This adjustment produces a more accurate picture of operating margin, capital efficiency, and return on invested capital — without changing free cash flow.
+
+**Role in our model: informational, not algorithmic.** The adjusted margin, S/C, and ROIC computed from R&D capitalization serve a display role. They appear in `calibrate` as reference anchors alongside raw GAAP values, and in `value`'s metrics table. They do NOT automatically flow into the DCF's projection math. The user explicitly picks starting operating margin, target operating margin, sales-to-capital ratio, and terminal ROIC in calibration; the DCF runs on those picks. When uncalibrated, the DCF falls back to raw GAAP values.
+
+This is a deliberate divergence from Damodaran's `fcffginzu.xls`, which grosses up projection-starting EBIT by `delta × (1 + t_marginal)` to plumb adjusted values through the forward projection automatically. Our approach trades that automation for user deliberation — `calibrate` is designed as a thinking tool for a deliberate investor, not a plug-and-play calculator.
 
 **Research asset** — straight-line amortization over N years, using pre-tax R&D (verified from Damodaran's R&DConv.xls spreadsheet):
 
@@ -151,13 +155,13 @@ Research Asset = Sum of R&D[year-i] × (N-i)/N   for i = 0 to N-1
 
 The current year's R&D enters at 100% with zero amortization. Each prior year decays by 1/N. Year -N is fully amortized out (0 in asset) but contributes its final R&D/N to current-year amortization.
 
-**Adjusted NOPAT:**
+**Adjusted NOPAT** (used to compute `adjusted_roic` for display):
 
 ```
 Adjusted NOPAT = EBIT(1-t) + R&D - Amortization
 ```
 
-R&D and amortization enter at full pre-tax values. This works because R&D remains fully tax-deductible regardless of the valuation reclassification — taxes paid don't change. The "ignored tax benefit" (= (R&D - Amort) × t) is naturally captured.
+R&D and amortization enter at full pre-tax values. This is Damodaran's canonical pre-tax add-back: R&D remains fully tax-deductible regardless of the valuation reclassification, so the pre-tax amounts naturally capture the "ignored tax benefit" (= (R&D - Amort) × t). Note that under the informational-role framing, this NOPAT is shown in ROIC context displays but is never fed through the DCF's `× (1 − t)` projection formula — the DCF uses whatever margin the user explicitly picks.
 
 **Adjusted Invested Capital:**
 
@@ -165,7 +169,9 @@ R&D and amortization enter at full pre-tax values. This works because R&D remain
 Adjusted IC = Equity + Debt - Cash - Investments + Research Asset
 ```
 
-**FCF is unchanged.** R&D added back to NOPAT and R&D added to CapEx cancel exactly. What changes: NOPAT, invested capital, and ROIC — which flow into terminal reinvestment (g/ROIC), the fundamental growth check, and the value-of-growth check.
+Used in `adjusted_roic = Adjusted NOPAT / Adjusted IC` and `adjusted_sales_to_capital = Revenue / Adjusted IC`, both display-only fields.
+
+**FCF is unchanged by the adjustment** in Damodaran's explicit-CapEx formulation: R&D added back to NOPAT and R&D added to CapEx cancel exactly. Our DCF uses an S/C-based reinvestment approach rather than explicit CapEx tracking, so this invariance is not strictly preserved across a raw-vs-adjusted S/C swap. This is intentional — the S/C approach is a steady-state simplification that doesn't try to replicate Damodaran's invariance inside a different projection model.
 
 **Amortizable life by industry** (from Damodaran's R&DConv.xls):
 
