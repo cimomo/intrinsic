@@ -260,14 +260,34 @@ Options:
 
 `dcf.py:28`: `market_risk_premium: float = 0.05` (static)
 
-Damodaran publishes monthly implied ERP. His January 2026 estimate: **4.23%** (over T-bond at 4.18%), with expected return on stocks of 8.41%. Our default of 5.0% is 77bps above his current estimate — this overstates cost of equity by ~0.7-0.8% for a beta-1 stock, which depresses fair value.
+Damodaran argues against historical ERP: it's backward-looking, noisy, and moves counterintuitively (falls during crises when risk is highest, which makes no economic sense). He advocates implied ERP — a reverse-DCF on the S&P 500 that solves for the discount rate that makes the index fairly priced, then subtracts the risk-free rate.
 
-His argument: historical ERP is backward-looking, noisy, and moves counterintuitively (falls during crises when risk is highest, which makes no economic sense). He published "ERP: The 2026 Edition" (March 2026, SSRN) with updated methodology.
+**Update cadence (verified 2026-04-10):**
+- **Monthly**, at the start of every month, on his home page (`pages.stern.nyu.edu/~adamodar/New_Home_Page/home.htm`). This has been his standard since September 2008.
+- **Daily** during crisis periods (e.g., March 2026 oil crisis — he recomputes daily when the price of risk is moving fast).
+- **Annually**, the full "Updated Data" package refreshes in the first two weeks of January. Most recent comprehensive update: January 9, 2026. The "ERP 2026 Edition" paper on SSRN goes up around the same time.
+- Historical monthly series lives in `pages.stern.nyu.edu/~adamodar/pc/datasets/histimpl.xls`.
+
+**Current values (as of April 1, 2026):**
+
+| Measure | Value |
+|---|---|
+| Trailing 12mo, adjusted payout *(his preferred anchor)* | **4.67%** |
+| Trailing 12mo cash yield | 4.77% |
+| Net cash yield | 4.51% |
+| Normalized earnings & payout | 4.09% |
+| Average CF yield, last 10 years | 6.96% |
+
+T-bond rate used as risk-free: **4.32%** (vs our default 4.5%).
+
+Our 5.0% default is 33bps above his April 1 trailing-adjusted-payout estimate — this overstates cost of equity by roughly 33bps × β. For a beta-1 stock, fair value is depressed by ~3%. For high-beta stocks this is material.
+
+**Stale-by-design problem:** Because he updates monthly and values have moved ~44bps in 3 months (Jan 4.23% → Apr 4.67% trailing adjusted payout), any hardcoded default drifts fast. Rung 3 below is more attractive than it first appeared.
 
 Options:
-- **Minimal:** Update the default to 4.5% (closer to his recent estimates)
-- **Better:** Add a note in calibrate when the assumption looks stale
-- **Best:** Fetch his latest implied ERP spreadsheet from `pages.stern.nyu.edu/~adamodar/pc/datasets/histimpl.xls`
+- **Rung 1:** Update default to current value (4.67% ERP, 4.32% Rf) + add `_updated` date field. Ship now.
+- **Rung 2:** In calibrate, print a staleness banner when stored ERP date is >30 days old, with the URL. Not a gate, just a nudge.
+- **Rung 3:** On-demand WebFetch from his home page when stale, parse out the current number. Fragile to HTML changes but the alternative is chronic staleness.
 
 #### 11. Synthetic credit rating for cost of debt
 
@@ -486,7 +506,7 @@ Damodaran sometimes transitions beta -> 1.0 and D/E -> industry average during t
 | 8 | Tax rate transition (effective -> marginal) | 1 | MEDIUM-HIGH | **DONE** | `b235a96` — effective_tax_rate transitions to marginal over projection period |
 | 8b | WACC tax rate consistency | 1 | LOW-MEDIUM | **DONE** | Year-varying WACC when effective_tax_rate is set + cost_of_capital hurdle rate override |
 | 9 | Bottom-up beta | 2 | MEDIUM-HIGH | TODO | |
-| 10 | Implied ERP | 2 | MEDIUM | TODO | Current default 5.0% vs Damodaran's Jan 2026 implied 4.23% |
+| 10 | Implied ERP | 2 | MEDIUM | **DONE** | Calibrate refreshes ERP + Rf from Damodaran's home page, caches in data/_market.json (30-day staleness), 5-measure menu, manual override support |
 | 11 | Synthetic credit rating (cost of debt) | 2 | MEDIUM | **DONE** | Rating-based cost of debt: actual rating primary, synthetic fallback, Damodaran spread table |
 | 12 | Cyclical earnings normalization | 2 | MEDIUM | TODO | |
 | 12b | Value decomposition (assets in place vs growth) | 2 | LOW-MEDIUM | TODO | Sanity check: what % of value comes from growth? |
@@ -519,12 +539,13 @@ Damodaran sometimes transitions beta -> 1.0 and D/E -> industry average during t
 
 ### Phase 2 — Better inputs (items 9-12)
 
-**DONE (1 of 6):**
+**DONE (2 of 6):**
+- Item 10: Calibrate refreshes implied ERP and risk-free rate from Damodaran's homepage (monthly cadence), cached in data/_market.json with 30-day staleness. 5-measure menu + manual override support. Hardcoded defaults unchanged as offline fallback.
 - Item 11: Rating-based cost of debt. Actual credit rating (web search) as primary, synthetic from interest coverage as fallback, Damodaran's January 2026 spread table. Large-firm and small-firm tables, auto-selected by market cap. Replaces broken `interest_expense / total_debt` heuristic.
 
 **Remaining:**
 - **#9 (bottom-up beta)** requires either hardcoding Damodaran's industry beta table or fetching it
-- **#10 (implied ERP)** is a small default update or web lookup. Current default (5.0%) is 77bps above Damodaran's Jan 2026 implied ERP (4.23%).
+- ~~**#10 (implied ERP)**~~ **DONE.** Calibrate now actively refreshes market_risk_premium and risk_free_rate from Damodaran's homepage, cached in data/_market.json. See docs/internal/2026-04-10-implied-erp-design.md for the design. Hardcoded defaults (5.0%/4.5%) remain as offline fallback; calibrate overwrites them with current Damodaran values when online.
 - **#12 (cyclical normalization)** is a calibrate skill change
 - **#12b (value decomposition)** is a simple sanity check display — no model changes
 - **#12c (implied revenue / TAM)** is a calibrate or value sanity check — no model changes
