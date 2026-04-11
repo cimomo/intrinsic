@@ -5,8 +5,6 @@ description: Review and update DCF assumptions for a stock interactively
 
 Review and update DCF assumptions for **$ARGUMENTS**.
 
-**Mode:** If `$ARGUMENTS` contains `--auto`, run in auto mode (see below). Otherwise, run interactively.
-
 ## Python Environment
 When running Python code, set `PYTHONPATH` so `stock_analyzer` is importable:
 ```
@@ -37,17 +35,6 @@ Assumptions are split into three tiers based on how much attention they need:
 - Operating Margin / Target Operating Margin
 - Sales-to-Capital Ratio
 - Terminal ROIC (how much competitive advantage persists in perpetuity — compared against WACC)
-
-## Auto Mode (`--auto`)
-
-When `--auto` is present, skip all `AskUserQuestion` calls. Follow the same steps as interactive mode but:
-- Apply recommended values directly without asking (respecting `_manual_overrides`)
-- Self-correct during coherence check
-- Self-correct during sensitivity awareness if high-impact + low confidence
-- Generate pre-mortem reasoning
-- Save automatically
-
-Strip `--auto` from the ticker symbol (e.g., `MSFT --auto` → ticker is `MSFT`).
 
 ## Steps:
 
@@ -83,7 +70,6 @@ Derive these from the financial data first, so WACC is established before any ju
        No agency rating found — using synthetic
      ```
   5. Set `cost_of_debt` in assumptions to the computed value.
-  - **Auto mode:** Skip web search, use synthetic only. Display: "Cost of debt: X.X% (synthetic Rating, coverage X.Xx — auto mode, no rating lookup)"
   - **Manual override:** If `cost_of_debt` is in `_manual_overrides`, keep the user's value: "Cost of debt: keeping manual override at X.X% (Rating suggests Y.Y%)"
 - **Tax Rate (marginal):** Default 21% for US companies. Only change if the company is domiciled in a different tax jurisdiction. Display: "Tax rate (marginal): 21%"
 - **Effective Tax Rate:** Calculate from income statement: tax expense / pre-tax income. Set as `effective_tax_rate` in assumptions. The DCF model transitions from this rate in year 1 to the marginal rate by year 10. Terminal value always uses marginal. Display: "Effective tax rate: X.X% (from income statement) → transitions to 21% marginal"
@@ -92,7 +78,7 @@ Derive these from the financial data first, so WACC is established before any ju
 
 If a mechanical assumption is in `_manual_overrides`, keep the user's value and note: "Beta: keeping manual override at X.XX (data suggests Y.YY)"
 
-**Interactive mode:** After showing all, ask once: "Any of these to adjust? [Enter to accept all]" — only drill into specifics if the user says yes.
+After showing all, ask once: "Any of these to adjust? [Enter to accept all]" — only drill into specifics if the user says yes.
 
 ### 3. WACC Inputs — Market Data (refresh from Damodaran)
 
@@ -144,7 +130,7 @@ Fetches implied ERP and T-bond rate from Damodaran's homepage, caches them in `d
   Using stored values from {ticker} (may be stale): ERP {stored_erp}%, Rf {stored_rf}%.
 ```
 
-**This branch applies to both interactive and auto mode.** Skip steps 3b and 3c entirely. Use the stock's existing `market_risk_premium` and `risk_free_rate` as-is, leave `_manual_overrides` unchanged, and proceed to Section 4 (compute WACC). In auto mode, the warning above replaces the normal "Market data refreshed" output; no further market-data changes are made.
+Skip steps 3b and 3c entirely. Use the stock's existing `market_risk_premium` and `risk_free_rate` as-is, leave `_manual_overrides` unchanged, and proceed to Section 4 (compute WACC).
 
 #### 3b. Display the market data
 
@@ -175,12 +161,12 @@ Also compute `{N days ago}` from `date.today() - date.fromisoformat(market_data[
 
 Branch selection is based on whether the stock's stored `market_risk_premium` equals the current default measure value (trailing 12mo adjusted payout). This is a direct value comparison — `_manual_overrides` status is not consulted for branch selection.
 
-**Interactive mode, stored ERP == current default measure value:**
+**If stored ERP == current default measure value:**
 
 Use `AskUserQuestion` with this prompt:
 > `Accept default (trailing adj payout X.XX%, Rf X.XX%)? Options: [1] Accept default, [2] Pick different ERP measure, [3] Custom ERP value, [4] Keep stored (no change)`
 
-**Interactive mode, stored ERP != current default measure value** (either a non-default menu choice or a custom override):
+**If stored ERP != current default measure value** (either a non-default menu choice or a custom override):
 
 > `Stock currently uses ERP X.XX% ({match_description} — computed in step 3b). Options: [1] Keep stored, [2] Accept default (trailing adj payout X.XX%), [3] Pick different ERP measure, [4] Custom ERP value`
 
@@ -212,12 +198,6 @@ Apply the result:
 | Custom value | Set to entered value | **Add** if not present |
 | Keep stored | No change | No change |
 
-**Auto mode:**
-1. If market file was stale and fetch succeeded: update `market_risk_premium` and `risk_free_rate` to current market values, **unless** they are in `_manual_overrides`.
-2. If `market_risk_premium` is in `_manual_overrides`: keep stored value, output: "Market risk premium: keeping manual override at X.XX% (Damodaran default is Y.YY%)"
-3. If `risk_free_rate` is in `_manual_overrides`: keep stored value, output: "Risk-free rate: keeping manual override at X.XX% (Damodaran shows Y.YY%)"
-4. Otherwise silently update and output: "Market data refreshed (Damodaran YYYY-MM-DD). ERP → X.XX% (trailing adj payout). Rf → X.XX%."
-
 #### 3d. Show other market-derived values
 
 Terminal growth rate and projection years are not Damodaran-sourced — they remain as before:
@@ -246,11 +226,9 @@ WACC: X.X%
 
 **Hurdle rate override:** After showing the computed WACC, offer the option to override it. This is useful when WACC components have known limitations (e.g., regression beta is noisy, spread table may lag market conditions).
 
-**Interactive mode:** "WACC is X.X%. Override with a manual hurdle rate? [Enter to keep computed]"
+"WACC is X.X%. Override with a manual hurdle rate? [Enter to keep computed]"
 
 If a cost_of_capital override is already set: "Cost of capital: X.X% (manual hurdle rate). Remove override and use computed WACC (Y.Y%)? [Enter to keep]"
-
-**Auto mode:** Never auto-set or auto-remove a cost_of_capital override.
 
 If a hurdle rate is set (existing or new), display:
 ```
@@ -272,9 +250,6 @@ Market-implied revenue growth: ~X%
 
 This is context, not a recommendation. It tells you: "the market is pricing in X% growth — if your assumption differs, you should know why."
 
-**Auto mode:** Calculate and display. Use as a reasonableness check when setting revenue growth.
-**Interactive mode:** Calculate and display before presenting core assumptions.
-
 ### 6. Core Assumptions (detailed review)
 
 For each core assumption, do the following:
@@ -295,15 +270,14 @@ For each core assumption, do the following:
      Research context: [what qualitative findings suggest, if available]
      → Recommending X% because [reasoning combining both]
    ```
-6. **Interactive mode:** Ask the user what value to use (current, recommended, or custom)
-7. **Auto mode:** Apply the recommended value (unless field is in `_manual_overrides` — then keep and show what auto would recommend)
+6. Ask the user what value to use (current, recommended, or custom)
 
 Go through these in order:
 
 **a. Revenue Growth Rate (Years 1-5)**
 - Look at: recent YoY quarterly revenue growth trends, annual revenue growth, analyst estimates
 - Consider: is growth accelerating or decelerating? Is the current assumption realistic?
-- **Interactive mode:** If the user picks a value significantly above the market-implied rate from the reverse DCF, challenge constructively: "That's X% above what the market prices in. What specifically do you see that the market doesn't?" This isn't to block them — it's to ensure the choice is deliberate.
+- If the user picks a value significantly above the market-implied rate from the reverse DCF, challenge constructively: "That's X% above what the market prices in. What specifically do you see that the market doesn't?" This isn't to block them — it's to ensure the choice is deliberate.
 
 **b. Operating Margin / Target Operating Margin**
 - Look at: current operating margin from financials, historical trend, peer comparison
@@ -364,9 +338,7 @@ Terminal ROIC:
 
 **Guard:** In all cases, cap terminal ROIC at 2× WACC. Even the strongest moats should not imply returns exceeding double the cost of capital in perpetuity. If the table or current ROIC suggests a value above 2× WACC, use 2× WACC and note the cap.
 
-**Interactive mode:** Present the anchors, the table-based recommendation, and the specific reasoning. Ask: "recommended (22%), WACC default (9.9%), or custom?"
-
-**Auto mode:** Apply the table-based recommendation using research moat signals. If no research is available, keep default (= WACC). If the recommended value is a manual override, keep the override and show what auto would recommend.
+Present the anchors, the table-based recommendation, and the specific reasoning. Ask: "recommended (22%), WACC default (9.9%), or custom?"
 
 ### 7. Coherence Check
 
@@ -398,9 +370,7 @@ If `adjusted_roic` is None (no R&D data), fall back to `dcf_inputs['roic']` and 
 - Research identifies major risks (High likelihood) but assumptions don't reflect conservatism → flag
 - Key Debate suggests market is skeptical about a specific factor but assumptions are optimistic on it → flag
 
-**What to do with findings:**
-- **Auto mode:** Self-correct. Adjust the inconsistent assumptions and note what changed: "Coherence check: reduced revenue growth from 18% to 15% — inconsistent with Decelerating growth signal and Low confidence"
-- **Interactive mode:** Flag each inconsistency to the user and ask if they want to adjust: "Revenue growth is set at 18% but research confidence is Low and growth is Decelerating. Revise? [y/N]"
+**What to do with findings:** Flag each inconsistency to the user and ask if they want to adjust: "Revenue growth is set at 18% but research confidence is Low and growth is Decelerating. Revise? [y/N]"
 
 If no inconsistencies are found, display: "Coherence check passed — assumptions are internally consistent"
 
@@ -418,9 +388,7 @@ Sensitivity (±20% change in assumption → fair value impact):
 
 Flag the highest-impact assumption: "Fair value is most sensitive to revenue growth — a ±20% change swings fair value by ±$XX. This assumption deserves the most scrutiny."
 
-**Auto mode:** If the highest-impact assumption also has Low confidence from research, flag: "Revenue growth has the highest impact on fair value AND Low confidence from research — consider using the conservative end of the range." Self-correct if warranted.
-
-**Interactive mode:** Challenge the user when the highest-impact assumption is vulnerable:
+Challenge the user when the highest-impact assumption is vulnerable:
 - If the highest-impact assumption has Low confidence from research: "Revenue growth drives the most value and has Low confidence. Want to revise? [y/N]"
 - If the highest-impact assumption is a manual override: "[Assumption] is the most sensitive assumption AND a manual override — your specific bet has the biggest impact on fair value. A ±20% swing means ±$XX. Are you comfortable with this exposure? [y/N]"
 - Both conditions can apply simultaneously — flag both.
@@ -438,24 +406,22 @@ Consider:
 
 Display the pre-mortem reasoning. This is informational — it doesn't change assumptions, but it provides important context that gets saved with the calibration output and informs the final report.
 
-**Auto mode:** Generate and display.
-**Interactive mode:** Generate and display. Ask: "Does this change your view on any assumptions? [y/N]"
+After displaying the pre-mortem reasoning, ask: "Does this change your view on any assumptions? [y/N]"
 
 ### 10. Save Updated Assumptions
 - Save via `StockManager.save_assumptions(symbol, assumptions, manual_overrides=overrides)`
-- **Interactive mode:** Track `_manual_overrides` throughout:
+- Track `_manual_overrides` throughout:
   - Start with the loaded list from `StockManager.load_manual_overrides(symbol)`
   - User chooses "recommended" → remove field from list
   - User chooses "custom" (types a specific value) → add field to list
   - User chooses "current" (keep existing) → no change to list
   - Note: coherence check adjustments accepted by the user are NOT manual overrides (they're corrections)
   - Pass the final list to `save_assumptions()`
-- **Auto mode:** Pass through the loaded `_manual_overrides` unchanged to `save_assumptions()`. Coherence check self-corrections do not affect the manual overrides list — they only adjust non-manual fields.
 - Display a before/after comparison table (including any coherence check adjustments)
 - Run a quick fair value calculation to show the impact of changes
 
 ### Important Notes
-- **Interactive mode:** Use `AskUserQuestion` for core assumptions and the group prompts for mechanical/market
+- Use `AskUserQuestion` for core assumptions and the group prompts for mechanical/market
 - Present the recommended value as the first option
 - Always show the math/data behind core assumption recommendations
 - If no cached financial data is available, note which recommendations are less reliable
