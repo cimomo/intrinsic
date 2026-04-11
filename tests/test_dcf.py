@@ -1001,3 +1001,33 @@ class TestRdAdjustedBasis:
         model = DCFModel(assumptions)
         result = model.calculate_fair_value(adjusted_financial_data, shares_outstanding=1e10, current_price=100.0, verbose=True)
         assert result['sales_to_capital'] == pytest.approx(2.5, rel=1e-9)
+
+    def test_forward_reverse_dcf_roundtrip_on_adjusted_path(self, adjusted_financial_data):
+        """Forward DCF produces a fair value; reverse DCF with that fair value as target
+        should return the same growth rate. Locks in internal consistency of the adjusted path."""
+        input_growth = 0.12
+        assumptions = DCFAssumptions(
+            revenue_growth_rate=input_growth,
+            terminal_growth_rate=0.04,
+            sales_to_capital_ratio=None,   # let adjusted_sales_to_capital feed through
+            terminal_roic=0.15,
+            operating_margin=None,          # let adjusted_operating_margin feed through
+        )
+        model = DCFModel(assumptions)
+        shares = 1e10
+
+        # Forward: compute fair value at input_growth
+        forward = model.calculate_fair_value(
+            adjusted_financial_data, shares_outstanding=shares, current_price=100.0, verbose=False
+        )
+        target_price = forward['fair_value']
+
+        # Reverse: solve for growth given fair value = target_price
+        reverse = model.reverse_dcf(
+            adjusted_financial_data,
+            shares_outstanding=shares,
+            target_price=target_price,
+            precision=0.0001,
+        )
+        assert reverse is not None
+        assert reverse['implied_value'] == pytest.approx(input_growth, abs=0.005)
