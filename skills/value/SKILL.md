@@ -46,6 +46,14 @@ PYTHONPATH="${CLAUDE_PLUGIN_ROOT:-.}" python3 -c "from stock_analyzer import ...
     Research Asset: $XXB | R&D/Revenue: X.X%
     ```
     Raw is the GAAP accounting view; adjusted treats R&D as amortized capital to show the economic view. Neither is "the" metric — they are two reference anchors for the user's judgment. The DCF below runs on whichever basis the user explicitly picked in `/calibrate`, or raw GAAP when uncalibrated.
+    - **Sources** — pull every value above from `dcf_inputs` (annual income statement basis), NOT from `metrics.operating_margin` (which is Alpha Vantage's TTM figure and can drift from the annual-derived number the DCF actually uses):
+      - Raw Operating Margin: `dcf_inputs['operating_income'] / dcf_inputs['revenue']`
+      - Raw S/C: `dcf_inputs['revenue'] / dcf_inputs['invested_capital']`
+      - Raw ROIC: `dcf_inputs['roic']`
+      - Adjusted Operating Margin: `dcf_inputs['adjusted_operating_margin']`
+      - Adjusted S/C: `dcf_inputs['adjusted_sales_to_capital']`
+      - Adjusted ROIC: `dcf_inputs['adjusted_roic']`
+      - Research Asset: `dcf_inputs['research_asset']`; R&D/Revenue = `dcf_inputs['current_rd'] / dcf_inputs['revenue']`; N = `dcf_inputs['rd_amortizable_life']`
     - Leave `metrics.roic` at its default (`dcf_inputs['roic']`, raw) — no override. Raw and adjusted ROIC appear as separate rows above.
     - If no R&D data (`dcf_inputs['adjusted_operating_margin']` is None): display single-row Operating Margin / ROIC from `metrics` as before, no raw/adjusted split, no Sales-to-Capital row.
   - Growth rates
