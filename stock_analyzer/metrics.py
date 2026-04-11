@@ -455,6 +455,7 @@ class FinancialMetrics:
         adjusted_roic = None
         adjusted_invested_capital = None
         adjusted_operating_margin = None
+        adjusted_sales_to_capital = None
         research_asset = None
         rd_amortization = None
         current_rd = None
@@ -485,6 +486,9 @@ class FinancialMetrics:
                     if revenue > 0:
                         adjusted_operating_margin = adjusted_operating_income / revenue
 
+                    # Adjusted sales-to-capital: revenue per unit of adjusted capital
+                    adjusted_sales_to_capital = revenue / adjusted_ic
+
         return {
             'revenue': revenue,
             'operating_income': operating_income,
@@ -508,6 +512,7 @@ class FinancialMetrics:
             'adjusted_roic': adjusted_roic,
             'adjusted_invested_capital': adjusted_invested_capital,
             'adjusted_operating_margin': adjusted_operating_margin,
+            'adjusted_sales_to_capital': adjusted_sales_to_capital,
             'research_asset': research_asset,
             'rd_amortization': rd_amortization,
             'current_rd': current_rd,

@@ -833,3 +833,25 @@ class TestDCFInputsRdCapitalization:
         income, _, balance, cashflow, overview = statements_with_rd
         inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, cashflow, overview)
         assert inputs["adjusted_operating_margin"] is None
+
+    def test_adjusted_sales_to_capital_present(self, statements_with_rd):
+        income, income_annual, balance, cashflow, overview = statements_with_rd
+        inputs = FinancialMetrics.calculate_dcf_inputs(
+            income, balance, cashflow, overview, income_annual=income_annual
+        )
+        assert "adjusted_sales_to_capital" in inputs
+        assert inputs["adjusted_sales_to_capital"] is not None
+
+    def test_adjusted_sales_to_capital_value(self, statements_with_rd):
+        """Adjusted S/C = Revenue / Adjusted Invested Capital"""
+        income, income_annual, balance, cashflow, overview = statements_with_rd
+        inputs = FinancialMetrics.calculate_dcf_inputs(
+            income, balance, cashflow, overview, income_annual=income_annual
+        )
+        expected = inputs["revenue"] / inputs["adjusted_invested_capital"]
+        assert inputs["adjusted_sales_to_capital"] == pytest.approx(expected, rel=1e-9)
+
+    def test_adjusted_sales_to_capital_none_when_no_rd(self, statements_with_rd):
+        income, _, balance, cashflow, overview = statements_with_rd
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, cashflow, overview)
+        assert inputs["adjusted_sales_to_capital"] is None
