@@ -357,11 +357,13 @@ Current ROIC: X.X% (with R&D capitalized, Y-year amortization)
   WACC: W.W% | Spread: S.S%
 ```
 
-If `adjusted_roic` is None (no R&D data), fall back to `dcf_inputs['roic']` and display as before. The adjusted ROIC reflects the true return on all capital deployed, including intangible R&D capital. Use it for the value-of-growth check and fundamental growth check below.
+If `adjusted_roic` is None (no R&D data), fall back to `dcf_inputs['roic']` and display as before. The adjusted ROIC reflects the true return on all capital deployed, including intangible R&D capital.
+
+**Basis consistency:** When adjusted values are available, the user has picked margin (step 6b), S/C (step 6c), and terminal ROIC (step 6d) all on the adjusted basis, so the coherence checks below are all on the adjusted basis automatically. Specifically: the fundamental growth check's "NOPAT" and "reinvestment rate" refer to the adjusted quantities, and the value-of-growth check compares adjusted ROIC to WACC.
 
 **Cross-assumption consistency:** Do the assumptions make sense together?
 - **Value of growth:** If ROIC < WACC, growth destroys value — higher growth makes the stock *less* valuable. Flag prominently: "ROIC (X%) is below WACC (Y%). At these returns, growth destroys value. Either ROIC must improve (higher margins or better capital efficiency) or the growth assumption is working against you."
-- **Fundamental growth check:** Compute `reinvestment_rate = (Revenue × growth_rate / sales_to_capital) / NOPAT` (where Revenue and NOPAT are current-year values). Then `fundamental_growth = reinvestment_rate × ROIC`. If the assumed revenue growth rate significantly exceeds fundamental growth, flag: "Assumed growth (X%) exceeds what current ROIC and reinvestment support (Y%). Achieving X% requires improving ROIC or increasing reinvestment beyond current levels."
+- **Fundamental growth check:** Compute `reinvestment_rate = (Revenue × growth_rate / sales_to_capital) / NOPAT` where `sales_to_capital` is the user's picked value (on the adjusted basis when available) and `NOPAT` is the adjusted NOPAT (= Revenue × adjusted_operating_margin × (1 − tax), or raw NOPAT as fallback when no R&D data). Then `fundamental_growth = reinvestment_rate × ROIC` where ROIC is adjusted when available. If the assumed revenue growth rate significantly exceeds fundamental growth, flag: "Assumed growth (X%) exceeds what current ROIC and reinvestment support (Y%). Achieving X% requires improving ROIC or increasing reinvestment beyond current levels."
 - High revenue growth + low sales-to-capital → implies heavy reinvestment. Calculate the implied reinvestment: Revenue × Growth Rate / S-C Ratio. Compare this to actual CapEx. If they diverge significantly, either S/C is wrong or not all CapEx is growth-related — state which you're assuming.
 - Expanding margins + high revenue growth → is the company actually showing operating leverage, or does growth require investment that pressures margins?
 - Moat rated "Narrowing" or "None" → should terminal growth be at or below risk-free rate?
