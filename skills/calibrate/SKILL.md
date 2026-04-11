@@ -94,23 +94,136 @@ If a mechanical assumption is in `_manual_overrides`, keep the user's value and 
 
 **Interactive mode:** After showing all, ask once: "Any of these to adjust? [Enter to accept all]" — only drill into specifics if the user says yes.
 
-### 3. WACC Inputs — Market/Fixed Assumptions (keep defaults)
+### 3. WACC Inputs — Market Data (refresh from Damodaran)
 
-These rarely need changing. Show a compact summary:
+Fetches implied ERP and T-bond rate from Damodaran's homepage, caches them in `data/_market.json`, and writes the user's chosen values into the stock's assumptions.
+
+#### 3a. Load and check the market file
+
+1. Call `StockManager.load_market_data()` to read `data/_market.json`
+2. Call `StockManager.is_market_data_stale(data, threshold_days=30)` to check freshness
+3. **If stale** (missing file, no `fetched_at`, malformed date, or >30 days old): invoke the WebFetch tool with the following prompt on `https://pages.stern.nyu.edu/~adamodar/New_Home_Page/home.htm`:
+
+   > Extract from Damodaran's homepage: (1) the current T-bond rate used as risk-free, (2) the five implied ERP measures (trailing 12mo adjusted payout, trailing 12mo cash yield, net cash yield, normalized earnings & payout, avg CF yield last 10y). Return as JSON matching this schema: `{"risk_free_rate": <decimal>, "measures": {"trailing_12mo_adjusted_payout": <decimal>, "trailing_12mo_cash_yield": <decimal>, "net_cash_yield": <decimal>, "normalized_earnings_payout": <decimal>, "avg_cf_yield_10y": <decimal>}}`. All values as decimals (e.g., 4.67% → 0.0467). If any value is missing or not found, return `null` for that field.
+
+4. **Parse and validate** the WebFetch response:
+   - Must be parseable as JSON
+   - Must have `risk_free_rate` (float, 0.0 to 0.10)
+   - Must have all 5 measures (each float, 0.01 to 0.15)
+   - If any validation fails: treat as fetch failure (go to step 3b "fetch failure fallback")
+
+5. **On successful fetch**, construct the market data dict and save it:
+
+   ```python
+   from datetime import date
+   market_data = {
+       "fetched_at": date.today().isoformat(),
+       "source": "damodaran.com homepage",
+       "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/home.htm",
+       "risk_free_rate": <parsed_rf>,
+       "implied_erp": {
+           "default_measure": "trailing_12mo_adjusted_payout",
+           "measures": {
+               "trailing_12mo_adjusted_payout": <parsed_value>,
+               "trailing_12mo_cash_yield": <parsed_value>,
+               "net_cash_yield": <parsed_value>,
+               "normalized_earnings_payout": <parsed_value>,
+               "avg_cf_yield_10y": <parsed_value>,
+           }
+       }
+   }
+   manager.save_market_data(market_data)
+   ```
+
+6. **If fresh**: use the cached market data directly without fetching.
+
+**Fetch failure fallback:** If WebFetch errors out, returns unparseable content, or returns values outside plausibility bounds, display a loud warning:
 
 ```
-Market/Fixed Assumptions (unchanged):
-  Risk-free rate:      4.5%
-  Market risk premium:  5.0%
-  Terminal growth rate: 4.5% (= risk-free rate)
-  Projection years:    10
+⚠ Unable to refresh market data from Damodaran ({reason}).
+  Using stored values from {ticker} (may be stale): ERP {stored_erp}%, Rf {stored_rf}%.
 ```
 
-If any value looks clearly outdated (e.g., risk-free rate is 4.5% but current Treasury is 3.8%), flag it: "Risk-free rate may be outdated — current 10-year Treasury is ~3.8%. Update? [y/N]"
+Skip steps 3b and 3c. Use the stock's existing `market_risk_premium` and `risk_free_rate` as-is and proceed to Section 4 (compute WACC).
 
-**Interactive mode:** Ask once: "Any of these to adjust? [Enter to accept all]"
+#### 3b. Display the market data
 
-**Auto mode:** Keep current values. Only update risk-free rate if a WebSearch was already done and the current value is more than 50bps off.
+Show the current Damodaran values and the stock's current stored values:
+
+```
+Market data (from Damodaran, fetched YYYY-MM-DD, N days ago):
+  Risk-free rate (10y Treasury):    X.XX%
+
+  Implied ERP — 5 measures:
+  [1] Trailing 12mo adjusted payout: X.XX%  ← default
+  [2] Trailing 12mo cash yield:      X.XX%
+  [3] Net cash yield:                X.XX%
+  [4] Normalized earnings & payout:  X.XX%
+  [5] Avg CF yield last 10y:         X.XX%
+
+  {TICKER} currently uses: Rf X.XX%, ERP X.XX% ({match_description})
+```
+
+Compute `{match_description}` by matching the stock's stored `market_risk_premium` against the market file's measures:
+- If it matches `default_measure` exactly → "matches default measure"
+- If it matches another measure → "matches measure [N] {measure_label}"
+- If it doesn't match any measure → "(manual override — does not match current Damodaran measures)"
+
+Also compute `{N days ago}` from `date.today() - date.fromisoformat(market_data['fetched_at'])`.
+
+#### 3c. User interaction
+
+**Interactive mode, stock has no `market_risk_premium` override OR stored value matches default measure:**
+
+Use `AskUserQuestion` with this prompt:
+> `Accept default (trailing adj payout X.XX%, Rf X.XX%)? Options: [1] Accept default, [2] Pick different ERP measure, [3] Custom ERP value, [4] Keep stored (no change)`
+
+**Interactive mode, stock has non-default measure or manual override:**
+
+> `Stock currently uses ERP X.XX% (manual override or non-default measure). Options: [1] Keep stored, [2] Accept default (trailing adj payout X.XX%), [3] Pick different ERP measure, [4] Custom ERP value`
+
+If user picks "different ERP measure", show a follow-up prompt:
+> `Select ERP measure: [1] Trailing 12mo adjusted payout X.XX%, [2] Trailing 12mo cash yield X.XX%, [3] Net cash yield X.XX%, [4] Normalized earnings & payout X.XX%, [5] Avg CF yield last 10y X.XX%`
+
+If user picks "custom", ask:
+> `Enter custom ERP value (as decimal, e.g., 0.05 for 5%):`
+
+Apply the result:
+
+| User choice | `market_risk_premium` | `_manual_overrides` for `market_risk_premium` |
+|---|---|---|
+| Accept default (trailing adj payout) | Set to default measure value | **Remove** if present |
+| Pick different menu measure | Set to that measure's value | **Add** if not present |
+| Custom value | Set to entered value | **Add** if not present |
+| Keep stored | No change | No change |
+
+**Risk-free rate:** Ask separately with a binary choice:
+> `Risk-free rate: current market value X.XX% (from Damodaran) or keep stored X.XX%?`
+
+Apply:
+- Accept market → set `risk_free_rate` to fetched value, **remove** from `_manual_overrides` if present
+- Keep stored / custom value → set accordingly, **add** to `_manual_overrides` if the value differs from market
+
+**Auto mode:**
+1. If market file was stale and fetch succeeded: update `market_risk_premium` and `risk_free_rate` to current market values, **unless** they are in `_manual_overrides`.
+2. If `market_risk_premium` is in `_manual_overrides`: keep stored value, output: "Market risk premium: keeping manual override at X.XX% (Damodaran default is Y.YY%)"
+3. If `risk_free_rate` is in `_manual_overrides`: keep stored value, output: "Risk-free rate: keeping manual override at X.XX% (Damodaran shows Y.YY%)"
+4. Otherwise silently update and output: "Market data refreshed (Damodaran YYYY-MM-DD). ERP → X.XX% (trailing adj payout). Rf → X.XX%."
+
+#### 3d. Show other market-derived values
+
+Terminal growth rate and projection years are not Damodaran-sourced — they remain as before:
+
+```
+Terminal growth rate: X.X% (= risk-free rate)
+Projection years:     10
+```
+
+If the user updates `risk_free_rate`, automatically update `terminal_growth_rate` to match (it defaults to the risk-free rate per `DCFAssumptions.__post_init__`).
+
+---
+
+**Note:** Refreshing market data via WebFetch requires network access. If running offline or if Damodaran's page is unreachable, calibrate falls back to the stock's stored values with a visible warning (see "Fetch failure fallback" in step 3a).
 
 ### 4. Compute and Display WACC
 
