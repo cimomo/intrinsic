@@ -320,14 +320,35 @@ When the user picks "same as starting," set `assumptions.target_operating_margin
 Consider: is margin expanding or contracting? What's a realistic trajectory over 10 years?
 
 **c. Sales-to-Capital Ratio**
-- **Primary anchor (when `dcf_inputs['adjusted_sales_to_capital']` is present):** Current adjusted S/C (Revenue / Adjusted Invested Capital, where Adjusted Invested Capital includes the research asset) is the anchor. Display as: `"Current S/C: X.Xx adjusted (research asset capitalized) | Y.Yx raw"`. Adjusted is the economic ratio; raw treats R&D as an expense.
-- **Fallback (when adjusted is None — zero-R&D companies):** Display raw S/C only.
-- **Historical trend (raw, directional context):** Always calculate 5+ years of historical raw data. Compute both:
-  - **Raw Average S/C** = Revenue / Invested Capital (Equity + Debt - Cash - Investments)
-  - **Raw Incremental S/C** = ΔRevenue / ΔInvested Capital (year-over-year — this is what the DCF model uses during projection years)
-- Use web sources if Alpha Vantage doesn't have enough history. True multi-year adjusted S/C history is unavailable for the same data-window reason as margin history, so the raw trend table is the best directional signal.
-- Present the full historical table to the user before asking for a value.
-- Consider: is there a regime change (e.g., capital-light → capital-heavy)? Is the trend improving or deteriorating? Pick the target on the adjusted scale.
+
+**Display anchors before asking.** Show:
+
+```
+Current sales-to-capital:
+  Raw (R&D expensed):               X.Xx   (= revenue / (equity + debt - cash - investments))
+  Adjusted (R&D capitalized):       Y.Yx   (= revenue / (raw IC + research asset))
+```
+
+Omit the "Adjusted" row when `dcf_inputs['adjusted_sales_to_capital']` is `None`.
+
+**Historical trend (raw, directional context):** Always calculate 5+ years of historical raw data. Compute both:
+- **Raw Average S/C** = Revenue / Invested Capital (Equity + Debt - Cash - Investments)
+- **Raw Incremental S/C** = ΔRevenue / ΔInvested Capital (year-over-year — this is what the DCF model uses during projection years)
+
+Use web sources if Alpha Vantage doesn't have enough history. True multi-year adjusted S/C history is unavailable given the 5-year Alpha Vantage data window and typical amortization lives, so the raw trend table is the best directional signal for whether capital efficiency is improving or deteriorating.
+
+Present the full historical table to the user before asking for a value.
+
+**Explain what the user is seeing:** Raw treats R&D as an operating expense, so invested capital excludes the accumulated research asset. Adjusted treats R&D as capital expenditure, so the research asset is part of invested capital — the denominator is larger, and the ratio is lower. Pick what reflects your view of the business's true capital intensity.
+
+**Question:** Use `AskUserQuestion` with these options:
+- Raw S/C (X.Xx)
+- Adjusted S/C (Y.Yx) — omit when `adjusted_sales_to_capital` is None
+- Custom (user types a value)
+
+Store the answer to `assumptions.sales_to_capital_ratio`.
+
+Consider: is there a regime change (e.g., capital-light → capital-heavy)? Is the historical trend improving or deteriorating? Does the adjusted number represent a more honest picture of what this business needs?
 
 **d. Terminal ROIC (Competitive Advantage Persistence)**
 
