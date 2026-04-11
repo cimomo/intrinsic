@@ -434,13 +434,22 @@ Use the **starting margin** (year 0) and the DCF's **marginal** `tax_rate` — t
 
 **Cross-assumption consistency:** Do the assumptions make sense together?
 - **Value of growth:** Compare implied projection ROIC to WACC. If implied ROIC < WACC, growth destroys value — higher growth makes the stock *less* valuable. Flag prominently: "Your picks imply ROIC of Z.Z% vs WACC of W.W% — at these returns, growth destroys value. Either margin/S/C must improve (higher ROIC) or the growth assumption is working against you."
-- **Fundamental growth check:** Compute:
+- **Fundamental growth check:** This check asks "given the firm's current cash generation, can it fund the assumed growth by reinvesting?" Unlike the value-of-growth check (which uses user-implied projection ROIC because it tests the *forward* economics), this check uses *historical* NOPAT and ROIC from `dcf_inputs` — the two anchors must come from different sources or the formula collapses to an identity. Compute:
   ```
-  user_NOPAT         = Revenue × assumptions.operating_margin × (1 - assumptions.tax_rate)
-  reinvestment_rate  = (Revenue × growth_rate / assumptions.sales_to_capital_ratio) / user_NOPAT
-  fundamental_growth = reinvestment_rate × implied_projection_ROIC
+  # Historical NOPAT — anchored on the firm's actual current profit,
+  # not derived from the user's forward-looking margin/S/C picks.
+  if dcf_inputs['adjusted_roic'] is not None:
+      current_nopat = dcf_inputs['adjusted_roic'] * dcf_inputs['adjusted_invested_capital']
+      current_roic  = dcf_inputs['adjusted_roic']
+  else:
+      current_nopat = dcf_inputs['roic'] * dcf_inputs['invested_capital']
+      current_roic  = dcf_inputs['roic']
+
+  reinvestment       = dcf_inputs['revenue'] * growth_rate / assumptions.sales_to_capital_ratio
+  reinvestment_rate  = reinvestment / current_nopat
+  fundamental_growth = reinvestment_rate * current_roic
   ```
-  Compare `fundamental_growth` to the assumed revenue growth rate. If the assumed growth significantly exceeds fundamental growth, flag: "Assumed growth (X%) exceeds what your picked margin + S/C + tax rate support (Y%). Achieving X% requires raising margins, improving capital efficiency, or raising reinvestment beyond current levels."
+  Compare `fundamental_growth` to the assumed revenue growth rate. If the assumed growth exceeds fundamental growth by more than 2 percentage points, flag: "Assumed growth (X%) exceeds what current cash generation supports (Y%) by more than 2 pp. Achieving X% requires improving capital efficiency (higher S/C) or reinvesting a larger share of NOPAT."
 - High revenue growth + low sales-to-capital → implies heavy reinvestment. Calculate the implied reinvestment: Revenue × Growth Rate / S-C Ratio. Compare this to actual CapEx. If they diverge significantly, either S/C is wrong or not all CapEx is growth-related — state which you're assuming.
 - Expanding margins + high revenue growth → is the company actually showing operating leverage, or does growth require investment that pressures margins?
 - Moat rated "Narrowing" or "None" → should terminal growth be at or below risk-free rate?
