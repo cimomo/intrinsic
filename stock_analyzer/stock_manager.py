@@ -4,7 +4,7 @@ Stock Manager - Handle stock-specific folders and assumptions persistence
 
 import os
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from .dcf import DCFAssumptions
@@ -23,6 +23,39 @@ class StockManager:
             base_dir: Base directory for stock folders (defaults to data/)
         """
         self.base_dir = Path(base_dir)
+
+    def is_market_data_stale(
+        self,
+        data: Optional[Dict],
+        threshold_days: int = 30
+    ) -> bool:
+        """
+        Check if market data is stale.
+
+        Returns True when:
+        - data is None
+        - data has no 'fetched_at' key or it's empty
+        - 'fetched_at' cannot be parsed as an ISO date
+        - 'fetched_at' is more than threshold_days days ago
+
+        Args:
+            data: Market data dict (from load_market_data) or None
+            threshold_days: Maximum age in days before data is considered stale
+
+        Returns:
+            True if stale, False if fresh
+        """
+        if data is None:
+            return True
+        fetched_at_str = data.get('fetched_at')
+        if not fetched_at_str:
+            return True
+        try:
+            fetched_at = date.fromisoformat(fetched_at_str)
+        except (ValueError, TypeError):
+            return True
+        age_days = (date.today() - fetched_at).days
+        return age_days > threshold_days
 
     def get_stock_folder(self, symbol: str) -> Path:
         """

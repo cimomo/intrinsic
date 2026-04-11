@@ -351,3 +351,51 @@ class TestAssumptionsSummary:
     def test_summary_for_nonexistent(self, manager):
         summary = manager.get_assumptions_summary("FAKE")
         assert "No assumptions file found" in summary
+
+
+from datetime import date, timedelta
+
+
+class TestMarketDataStaleness:
+    """Tests for StockManager.is_market_data_stale()"""
+
+    def test_none_data_is_stale(self, manager):
+        assert manager.is_market_data_stale(None) is True
+
+    def test_missing_fetched_at_is_stale(self, manager):
+        data = {"risk_free_rate": 0.04}
+        assert manager.is_market_data_stale(data) is True
+
+    def test_empty_fetched_at_is_stale(self, manager):
+        data = {"fetched_at": "", "risk_free_rate": 0.04}
+        assert manager.is_market_data_stale(data) is True
+
+    def test_malformed_fetched_at_is_stale(self, manager):
+        data = {"fetched_at": "not-a-date", "risk_free_rate": 0.04}
+        assert manager.is_market_data_stale(data) is True
+
+    def test_today_is_not_stale(self, manager):
+        data = {"fetched_at": date.today().isoformat()}
+        assert manager.is_market_data_stale(data) is False
+
+    def test_29_days_ago_is_not_stale(self, manager):
+        old = (date.today() - timedelta(days=29)).isoformat()
+        data = {"fetched_at": old}
+        assert manager.is_market_data_stale(data) is False
+
+    def test_30_days_ago_is_not_stale(self, manager):
+        # Boundary: exactly 30 days is still fresh (> threshold is stale)
+        old = (date.today() - timedelta(days=30)).isoformat()
+        data = {"fetched_at": old}
+        assert manager.is_market_data_stale(data) is False
+
+    def test_31_days_ago_is_stale(self, manager):
+        old = (date.today() - timedelta(days=31)).isoformat()
+        data = {"fetched_at": old}
+        assert manager.is_market_data_stale(data) is True
+
+    def test_custom_threshold(self, manager):
+        old = (date.today() - timedelta(days=8)).isoformat()
+        data = {"fetched_at": old}
+        assert manager.is_market_data_stale(data, threshold_days=7) is True
+        assert manager.is_market_data_stale(data, threshold_days=10) is False
