@@ -280,8 +280,10 @@ Go through these in order:
 - If the user picks a value significantly above the market-implied rate from the reverse DCF, challenge constructively: "That's X% above what the market prices in. What specifically do you see that the market doesn't?" This isn't to block them — it's to ensure the choice is deliberate.
 
 **b. Operating Margin / Target Operating Margin**
-- Look at: current operating margin from financials, historical trend, peer comparison
-- Consider: is margin expanding or contracting? What's a realistic target?
+- **Primary anchor (when `dcf_inputs['adjusted_operating_margin']` is present):** Current adjusted margin (R&D capitalized) is the anchor for the target. Display as: `"Current margin: X.X% adjusted (R&D capitalized, N-year amortization) | Y.Y% raw GAAP"`. Adjusted is the economic margin — what the business would show if R&D were treated as capex; raw is what Alpha Vantage reports from GAAP financials.
+- **Fallback (when adjusted is None — zero-R&D companies):** Display raw operating margin only.
+- **Historical trend:** Show raw 5-year margin range as directional context — is the company expanding or compressing margin? Note that true multi-year adjusted margin history is unavailable given Alpha Vantage's 5-year data window and typical amortization lives, so the historical trend is shown on the raw scale and interpreted as directional.
+- Consider: is margin expanding or contracting? What's a realistic target on the adjusted basis?
 
 **c. Sales-to-Capital Ratio**
 - **Always calculate 5+ years of historical data before recommending.** Compute both:
