@@ -942,3 +942,64 @@ class TestEquityBridge:
         assert match is not None
         base_case_from_table = float(match.group(1).replace(',', ''))
         assert base_case_from_table == pytest.approx(r['fair_value'], rel=0.01)
+
+
+class TestDcfMarginRawOrUserFallback:
+    """R&D informational reframe: dcf.py margin resolution is user-or-raw.
+
+    adjusted_operating_margin in financial_data must be ignored by the DCF —
+    it is purely a display field now.
+    """
+
+    @pytest.fixture
+    def financial_data_with_adjusted(self):
+        return {
+            'revenue': 200_000_000_000,
+            'operating_income': 80_000_000_000,   # raw margin = 40%
+            'total_debt': 50_000_000_000,
+            'cash': 20_000_000_000,
+            'short_term_investments': 10_000_000_000,
+            'long_term_investments': 5_000_000_000,
+            'equity': 100_000_000_000,
+            'market_cap': 2_000_000_000_000,
+            'beta': 1.1,
+            'adjusted_operating_margin': 0.60,    # 60% adjusted — must NOT be used
+            'adjusted_sales_to_capital': 1.35,
+        }
+
+    def test_dcf_uses_raw_margin_when_user_assumption_unset(self, financial_data_with_adjusted):
+        """When operating_margin is None, DCF uses raw operating_income/revenue, NOT adjusted_operating_margin."""
+        assumptions = DCFAssumptions(
+            revenue_growth_rate=0.10,
+            terminal_growth_rate=0.04,
+            operating_margin=None,          # unset — fallback path
+            sales_to_capital_ratio=1.0,     # pinned to isolate margin
+            terminal_roic=0.15,
+        )
+        model = DCFModel(assumptions)
+        result = model.calculate_fair_value(
+            financial_data_with_adjusted,
+            shares_outstanding=1e10,
+            current_price=100.0,
+            verbose=True,
+        )
+        # Raw is 80B / 200B = 0.40. Adjusted is 0.60. The DCF MUST pick raw.
+        assert result['operating_margin'] == pytest.approx(0.40, rel=1e-9)
+
+    def test_dcf_uses_user_assumption_when_set(self, financial_data_with_adjusted):
+        """User-set operating_margin wins over both raw and adjusted."""
+        assumptions = DCFAssumptions(
+            revenue_growth_rate=0.10,
+            terminal_growth_rate=0.04,
+            operating_margin=0.55,          # user pick
+            sales_to_capital_ratio=1.0,
+            terminal_roic=0.15,
+        )
+        model = DCFModel(assumptions)
+        result = model.calculate_fair_value(
+            financial_data_with_adjusted,
+            shares_outstanding=1e10,
+            current_price=100.0,
+            verbose=True,
+        )
+        assert result['operating_margin'] == pytest.approx(0.55, rel=1e-9)

@@ -403,12 +403,16 @@ class DCFModel:
         if market_cap <= 0:
             raise ValueError(f"market_cap must be positive, got {market_cap}")
 
-        # Calculate margins and ratios
-        operating_margin = (
-            self.assumptions.operating_margin or
-            financial_data.get('adjusted_operating_margin') or
-            (operating_income / revenue if revenue > 0 else 0.15)
-        )
+        # Calculate margins and ratios.
+        # R&D informational reframe: user assumption or raw fallback only.
+        # adjusted_operating_margin (when present in financial_data) is a
+        # display field consumed by calibrate/value skills, not the DCF.
+        if self.assumptions.operating_margin is not None:
+            operating_margin = self.assumptions.operating_margin
+        elif revenue > 0:
+            operating_margin = operating_income / revenue
+        else:
+            operating_margin = 0.15
 
         # Calculate sales-to-capital ratio
         # Sales-to-Capital = Revenue / Invested Capital
