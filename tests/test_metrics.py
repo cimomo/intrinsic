@@ -808,3 +808,28 @@ class TestDCFInputsRdCapitalization:
         expected_nopat = 64e9 + 30e9 - 15e9
         expected_ic = 115e9 + (30e9 + 25e9 * 2 / 3 + 20e9 / 3)
         assert inputs["adjusted_roic"] == pytest.approx(expected_nopat / expected_ic, rel=1e-4)
+
+    def test_adjusted_operating_margin_present(self, statements_with_rd):
+        income, income_annual, balance, cashflow, overview = statements_with_rd
+        inputs = FinancialMetrics.calculate_dcf_inputs(
+            income, balance, cashflow, overview, income_annual=income_annual
+        )
+        assert "adjusted_operating_margin" in inputs
+        assert inputs["adjusted_operating_margin"] is not None
+
+    def test_adjusted_operating_margin_value(self, statements_with_rd):
+        """Adjusted margin = (EBIT + R&D - Amort) / Revenue"""
+        income, income_annual, balance, cashflow, overview = statements_with_rd
+        inputs = FinancialMetrics.calculate_dcf_inputs(
+            income, balance, cashflow, overview, income_annual=income_annual
+        )
+        # Fixture: EBIT=80B, Revenue=200B, current R&D=30B, prior R&D=25B and 20B, 3-year life
+        # Amortization = (25B + 20B) / 3 = 15B (limited history — year -3 data not in fixture)
+        # Adjusted EBIT = 80 + 30 - 15 = 95B
+        # Adjusted margin = 95 / 200 = 0.475
+        assert inputs["adjusted_operating_margin"] == pytest.approx(0.475, rel=1e-4)
+
+    def test_adjusted_operating_margin_none_when_no_rd(self, statements_with_rd):
+        income, _, balance, cashflow, overview = statements_with_rd
+        inputs = FinancialMetrics.calculate_dcf_inputs(income, balance, cashflow, overview)
+        assert inputs["adjusted_operating_margin"] is None

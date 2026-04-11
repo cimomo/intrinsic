@@ -454,6 +454,7 @@ class FinancialMetrics:
         # R&D capitalization (Damodaran methodology)
         adjusted_roic = None
         adjusted_invested_capital = None
+        adjusted_operating_margin = None
         research_asset = None
         rd_amortization = None
         current_rd = None
@@ -478,6 +479,12 @@ class FinancialMetrics:
                     adjusted_roic = adjusted_nopat / adjusted_ic
                     adjusted_invested_capital = adjusted_ic
 
+                    # Adjusted operating margin: pre-tax economic margin
+                    # = (EBIT + R&D - Amort) / Revenue, where (R&D - Amort) = adjusted_nopat_delta
+                    adjusted_operating_income = operating_income + rd_cap["adjusted_nopat_delta"]
+                    if revenue > 0:
+                        adjusted_operating_margin = adjusted_operating_income / revenue
+
         return {
             'revenue': revenue,
             'operating_income': operating_income,
@@ -500,6 +507,7 @@ class FinancialMetrics:
             'synthetic_spread': synthetic_spread,
             'adjusted_roic': adjusted_roic,
             'adjusted_invested_capital': adjusted_invested_capital,
+            'adjusted_operating_margin': adjusted_operating_margin,
             'research_asset': research_asset,
             'rd_amortization': rd_amortization,
             'current_rd': current_rd,
