@@ -511,7 +511,7 @@ Damodaran sometimes transitions beta -> 1.0 and D/E -> industry average during t
 | 12 | Cyclical earnings normalization | 2 | MEDIUM | TODO | |
 | 12b | Value decomposition (assets in place vs growth) | 2 | LOW-MEDIUM | TODO | Sanity check: what % of value comes from growth? |
 | 12c | Implied revenue / TAM check | 2 | LOW-MEDIUM | TODO | Sanity check: is year-10 revenue plausible? |
-| 13 | R&D capitalization | 3 | MEDIUM-HIGH | **DONE** | Pre-tax asset per Damodaran R&DConv.xls, industry amortizable life, adjusted ROIC in calibrate/value |
+| 13 | R&D capitalization | 3 | MEDIUM-HIGH | **DONE** | Pre-tax asset per Damodaran R&DConv.xls, industry amortizable life. First pass (2026-04-09): adjusted ROIC in calibrate/value. Second pass (2026-04-11): adjusted margin and adjusted S/C flow through calibrate anchors and DCF starting-point extraction — forward/reverse DCF consistent on adjusted basis |
 | 14 | Industry base rate comparisons | 3 | MEDIUM | TODO | |
 | 15 | Financial services warning | 3 | MEDIUM | TODO | |
 | 16 | Distress probability adjustment | 3 | LOW-MEDIUM | TODO | |
@@ -554,7 +554,7 @@ Damodaran sometimes transitions beta -> 1.0 and D/E -> industry average during t
 ### Phase 3 — Structural adjustments (items 13-19)
 
 **DONE (1 of 7):**
-- Item 13: R&D capitalization per Damodaran's R&DConv.xls. Pre-tax research asset with straight-line amortization, industry-specific amortizable life (3yr software, 5yr semi, 10yr pharma). Adjusted ROIC flows into calibrate coherence checks and terminal ROIC anchoring. FCF unchanged.
+- Item 13: R&D capitalization per Damodaran's R&DConv.xls. Pre-tax research asset with straight-line amortization, industry-specific amortizable life (3yr software, 5yr semi, 10yr pharma). First pass (2026-04-09): adjusted ROIC flows into calibrate coherence checks and terminal ROIC anchoring. Second pass (2026-04-11): adjusted operating margin and adjusted S/C now also feed calibrate step 6b/6c anchors and the DCF starting-point extraction, so terminal ROIC is paired with adjusted NOPAT instead of mixing raw with adjusted. Forward and reverse DCF maintain round-trip consistency on the adjusted path. See `docs/internal/2026-04-11-rd-adjusted-basis-design.md` and `docs/internal/2026-04-11-rd-adjusted-basis-plan.md`. FCF unchanged.
 
 **Remaining:** Items 14-19 (industry base rates, financial services warning, distress, leases, country risk, multi-stage WACC).
 
