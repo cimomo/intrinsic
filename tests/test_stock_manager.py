@@ -420,7 +420,7 @@ class TestSaveMarketData:
         assert path.exists()
         assert path.name == "_market.json"
 
-    def test_save_round_trips_via_json(self, manager, tmp_path):
+    def test_save_round_trips_via_json(self, manager):
         data = {
             "fetched_at": "2026-04-10",
             "risk_free_rate": 0.0432,
@@ -473,3 +473,136 @@ class TestSaveMarketData:
         path = manager.save_market_data(data)
         assert path.exists()
         assert nested.exists()
+
+
+class TestLoadMarketData:
+    """Tests for StockManager.load_market_data() validation"""
+
+    # Helper to build a minimally valid market data dict
+    @staticmethod
+    def _valid_data():
+        return {
+            "fetched_at": "2026-04-10",
+            "source": "damodaran.com homepage",
+            "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/home.htm",
+            "risk_free_rate": 0.0432,
+            "implied_erp": {
+                "default_measure": "trailing_12mo_adjusted_payout",
+                "measures": {
+                    "trailing_12mo_adjusted_payout": 0.0467,
+                    "trailing_12mo_cash_yield": 0.0477,
+                    "net_cash_yield": 0.0451,
+                    "normalized_earnings_payout": 0.0409,
+                    "avg_cf_yield_10y": 0.0696,
+                }
+            }
+        }
+
+    def test_missing_file_returns_none(self, manager):
+        assert manager.load_market_data() is None
+
+    def test_valid_file_round_trips(self, manager):
+        data = self._valid_data()
+        manager.save_market_data(data)
+        loaded = manager.load_market_data()
+        assert loaded == data
+
+    def test_invalid_json_returns_none(self, manager):
+        manager.base_dir.mkdir(parents=True, exist_ok=True)
+        (manager.base_dir / '_market.json').write_text("{not valid json")
+        assert manager.load_market_data() is None
+
+    def test_not_a_dict_returns_none(self, manager):
+        manager.base_dir.mkdir(parents=True, exist_ok=True)
+        (manager.base_dir / '_market.json').write_text('["a", "list"]')
+        assert manager.load_market_data() is None
+
+    def test_missing_fetched_at_returns_none(self, manager):
+        data = self._valid_data()
+        del data['fetched_at']
+        manager.save_market_data(data)
+        assert manager.load_market_data() is None
+
+    def test_missing_risk_free_rate_returns_none(self, manager):
+        data = self._valid_data()
+        del data['risk_free_rate']
+        manager.save_market_data(data)
+        assert manager.load_market_data() is None
+
+    def test_missing_implied_erp_returns_none(self, manager):
+        data = self._valid_data()
+        del data['implied_erp']
+        manager.save_market_data(data)
+        assert manager.load_market_data() is None
+
+    def test_missing_default_measure_returns_none(self, manager):
+        data = self._valid_data()
+        del data['implied_erp']['default_measure']
+        manager.save_market_data(data)
+        assert manager.load_market_data() is None
+
+    def test_missing_measures_returns_none(self, manager):
+        data = self._valid_data()
+        del data['implied_erp']['measures']
+        manager.save_market_data(data)
+        assert manager.load_market_data() is None
+
+    def test_empty_measures_returns_none(self, manager):
+        data = self._valid_data()
+        data['implied_erp']['measures'] = {}
+        manager.save_market_data(data)
+        assert manager.load_market_data() is None
+
+    def test_default_measure_not_in_measures_returns_none(self, manager):
+        data = self._valid_data()
+        data['implied_erp']['default_measure'] = 'nonexistent_measure'
+        manager.save_market_data(data)
+        assert manager.load_market_data() is None
+
+    def test_risk_free_rate_negative_returns_none(self, manager):
+        data = self._valid_data()
+        data['risk_free_rate'] = -0.01
+        manager.save_market_data(data)
+        assert manager.load_market_data() is None
+
+    def test_risk_free_rate_too_high_returns_none(self, manager):
+        data = self._valid_data()
+        data['risk_free_rate'] = 0.15  # 15% > 10% upper bound
+        manager.save_market_data(data)
+        assert manager.load_market_data() is None
+
+    def test_risk_free_rate_zero_is_ok(self, manager):
+        data = self._valid_data()
+        data['risk_free_rate'] = 0.0  # boundary: 0% is allowed
+        manager.save_market_data(data)
+        loaded = manager.load_market_data()
+        assert loaded is not None
+        assert loaded['risk_free_rate'] == 0.0
+
+    def test_erp_measure_too_low_returns_none(self, manager):
+        data = self._valid_data()
+        data['implied_erp']['measures']['trailing_12mo_adjusted_payout'] = 0.005  # 0.5% < 1%
+        manager.save_market_data(data)
+        assert manager.load_market_data() is None
+
+    def test_erp_measure_too_high_returns_none(self, manager):
+        data = self._valid_data()
+        data['implied_erp']['measures']['trailing_12mo_adjusted_payout'] = 0.20  # 20% > 15%
+        manager.save_market_data(data)
+        assert manager.load_market_data() is None
+
+    def test_rf_as_string_returns_none(self, manager):
+        data = self._valid_data()
+        data['risk_free_rate'] = "0.0432"  # string, not number
+        manager.save_market_data(data)
+        assert manager.load_market_data() is None
+
+    def test_stale_file_still_loads(self, manager):
+        # load_market_data should return data regardless of age;
+        # staleness check is a separate concern (is_market_data_stale)
+        data = self._valid_data()
+        data['fetched_at'] = "2020-01-01"  # very old
+        manager.save_market_data(data)
+        loaded = manager.load_market_data()
+        assert loaded is not None
+        assert loaded['fetched_at'] == "2020-01-01"

@@ -78,6 +78,76 @@ class StockManager:
             json.dump(data, f, indent=2)
         return market_file
 
+    def load_market_data(self) -> Optional[Dict]:
+        """
+        Load and validate market data from data/_market.json.
+
+        Returns None on any of:
+        - File does not exist
+        - Invalid JSON
+        - Not a dict
+        - Missing required keys (fetched_at, risk_free_rate, implied_erp)
+        - implied_erp missing default_measure or measures
+        - measures dict is empty
+        - default_measure key does not exist in measures dict
+        - risk_free_rate outside [0.0, 0.10]
+        - any measure value outside [0.01, 0.15]
+        - any numeric field is not an int or float
+
+        Returns:
+            Validated market data dict, or None
+        """
+        market_file = self.base_dir / '_market.json'
+        if not market_file.exists():
+            return None
+
+        try:
+            with open(market_file, 'r') as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, IOError, OSError) as e:
+            print(f"Warning: could not read {market_file}: {e}")
+            return None
+
+        # Structure checks
+        if not isinstance(data, dict):
+            return None
+        if 'fetched_at' not in data:
+            return None
+        if 'risk_free_rate' not in data:
+            return None
+        if 'implied_erp' not in data:
+            return None
+
+        implied_erp = data['implied_erp']
+        if not isinstance(implied_erp, dict):
+            return None
+        if 'default_measure' not in implied_erp:
+            return None
+        if 'measures' not in implied_erp:
+            return None
+
+        measures = implied_erp['measures']
+        if not isinstance(measures, dict) or len(measures) == 0:
+            return None
+        if implied_erp['default_measure'] not in measures:
+            return None
+
+        # Plausibility bounds on risk-free rate: 0% to 10%
+        rf = data['risk_free_rate']
+        if not isinstance(rf, (int, float)) or isinstance(rf, bool):
+            return None
+        if rf < 0.0 or rf > 0.10:
+            return None
+
+        # Plausibility bounds on each ERP measure: 1% to 15%
+        for measure_name, value in measures.items():
+            if not isinstance(value, (int, float)) or isinstance(value, bool):
+                return None
+            if value < 0.01 or value > 0.15:
+                return None
+
+        return data
+
     def get_stock_folder(self, symbol: str) -> Path:
         """
         Get or create the folder for a stock symbol
