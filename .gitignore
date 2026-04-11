@@ -8,3 +8,4 @@ dist/
 build/
 .claude/
 assets/internal/
+docs/internal/
