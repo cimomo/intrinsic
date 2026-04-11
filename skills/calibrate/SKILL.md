@@ -409,22 +409,38 @@ Present the anchors, the table-based recommendation, and the specific reasoning.
 
 After all assumptions are set, step back and review them as a whole. This is a reasoning step — no new data or web searches needed.
 
-**ROIC context:** Before running consistency checks, get ROIC from `calculate_dcf_inputs()`. If `dcf_inputs['adjusted_roic']` is available (R&D capitalized), use it as the primary ROIC for all checks below. Display:
+**ROIC panel — always display at the start of step 7:**
 
 ```
-Current ROIC: X.X% (with R&D capitalized, Y-year amortization)
-  Unadjusted ROIC: Z.Z% (R&D as operating expense)
-  Research asset: $XXB
-  WACC: W.W% | Spread: S.S%
+ROIC context:
+  WACC (floor):                  W.W%
+  Raw current ROIC:              X.X%   (GAAP, R&D expensed)
+  Adjusted current ROIC:         Y.Y%   (Damodaran, R&D capitalized)   [when available]
+  Your implied projection ROIC:  Z.Z%   (= picked margin × picked S/C × after-tax)
+  Your terminal ROIC pick:       T.T%   (convergence target for stable growth)
 ```
 
-If `adjusted_roic` is None (no R&D data), fall back to `dcf_inputs['roic']` and display as before. The adjusted ROIC reflects the true return on all capital deployed, including intangible R&D capital.
+Omit the "Adjusted current ROIC" row when `dcf_inputs['adjusted_roic']` is `None` (zero-R&D companies). The implied projection ROIC is derived from the user's own picks:
 
-**Basis consistency:** When adjusted values are available, the user has picked margin (step 6b), S/C (step 6c), and terminal ROIC (step 6d) all on the adjusted basis, so the coherence checks below are all on the adjusted basis automatically. Specifically: the fundamental growth check's "NOPAT" and "reinvestment rate" refer to the adjusted quantities, and the value-of-growth check compares adjusted ROIC to WACC.
+```python
+implied_projection_ROIC = (
+    assumptions.operating_margin           # the starting-margin pick from step 6b
+    * assumptions.sales_to_capital_ratio   # pick from step 6c
+    * (1 - assumptions.tax_rate)           # marginal rate from DCFAssumptions
+)
+```
+
+Use the **starting margin** (year 0) and the DCF's **marginal** `tax_rate` — this is a going-forward steady-state anchor, not a year-specific value. Even when the user has set `effective_tax_rate`, the panel uses marginal so the number is comparable to the terminal ROIC pick.
 
 **Cross-assumption consistency:** Do the assumptions make sense together?
-- **Value of growth:** If ROIC < WACC, growth destroys value — higher growth makes the stock *less* valuable. Flag prominently: "ROIC (X%) is below WACC (Y%). At these returns, growth destroys value. Either ROIC must improve (higher margins or better capital efficiency) or the growth assumption is working against you."
-- **Fundamental growth check:** Compute `reinvestment_rate = (Revenue × growth_rate / sales_to_capital) / NOPAT` where `sales_to_capital` is the user's picked value (on the adjusted basis when available) and `NOPAT` is `dcf_inputs['adjusted_roic'] × dcf_inputs['adjusted_invested_capital']` — Damodaran's canonical adjusted NOPAT, which pairs exactly with adjusted ROIC below. Fall back to `dcf_inputs['roic'] × dcf_inputs['invested_capital']` when no R&D data. Then `fundamental_growth = reinvestment_rate × ROIC` where ROIC is adjusted when available. If the assumed revenue growth rate significantly exceeds fundamental growth, flag: "Assumed growth (X%) exceeds what current ROIC and reinvestment support (Y%). Achieving X% requires improving ROIC or increasing reinvestment beyond current levels."
+- **Value of growth:** Compare implied projection ROIC to WACC. If implied ROIC < WACC, growth destroys value — higher growth makes the stock *less* valuable. Flag prominently: "Your picks imply ROIC of Z.Z% vs WACC of W.W% — at these returns, growth destroys value. Either margin/S/C must improve (higher ROIC) or the growth assumption is working against you."
+- **Fundamental growth check:** Compute:
+  ```
+  user_NOPAT         = Revenue × assumptions.operating_margin × (1 - assumptions.tax_rate)
+  reinvestment_rate  = (Revenue × growth_rate / assumptions.sales_to_capital_ratio) / user_NOPAT
+  fundamental_growth = reinvestment_rate × implied_projection_ROIC
+  ```
+  Compare `fundamental_growth` to the assumed revenue growth rate. If the assumed growth significantly exceeds fundamental growth, flag: "Assumed growth (X%) exceeds what your picked margin + S/C + tax rate support (Y%). Achieving X% requires raising margins, improving capital efficiency, or raising reinvestment beyond current levels."
 - High revenue growth + low sales-to-capital → implies heavy reinvestment. Calculate the implied reinvestment: Revenue × Growth Rate / S-C Ratio. Compare this to actual CapEx. If they diverge significantly, either S/C is wrong or not all CapEx is growth-related — state which you're assuming.
 - Expanding margins + high revenue growth → is the company actually showing operating leverage, or does growth require investment that pressures margins?
 - Moat rated "Narrowing" or "None" → should terminal growth be at or below risk-free rate?
