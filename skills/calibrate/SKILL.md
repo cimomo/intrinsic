@@ -144,7 +144,7 @@ Fetches implied ERP and T-bond rate from Damodaran's homepage, caches them in `d
   Using stored values from {ticker} (may be stale): ERP {stored_erp}%, Rf {stored_rf}%.
 ```
 
-Skip steps 3b and 3c. Use the stock's existing `market_risk_premium` and `risk_free_rate` as-is and proceed to Section 4 (compute WACC).
+**This branch applies to both interactive and auto mode.** Skip steps 3b and 3c entirely. Use the stock's existing `market_risk_premium` and `risk_free_rate` as-is, leave `_manual_overrides` unchanged, and proceed to Section 4 (compute WACC). In auto mode, the warning above replaces the normal "Market data refreshed" output; no further market-data changes are made.
 
 #### 3b. Display the market data
 
@@ -173,14 +173,16 @@ Also compute `{N days ago}` from `date.today() - date.fromisoformat(market_data[
 
 #### 3c. User interaction
 
-**Interactive mode, stock has no `market_risk_premium` override OR stored value matches default measure:**
+Branch selection is based on whether the stock's stored `market_risk_premium` equals the current default measure value (trailing 12mo adjusted payout). This is a direct value comparison — `_manual_overrides` status is not consulted for branch selection.
+
+**Interactive mode, stored ERP == current default measure value:**
 
 Use `AskUserQuestion` with this prompt:
 > `Accept default (trailing adj payout X.XX%, Rf X.XX%)? Options: [1] Accept default, [2] Pick different ERP measure, [3] Custom ERP value, [4] Keep stored (no change)`
 
-**Interactive mode, stock has non-default measure or manual override:**
+**Interactive mode, stored ERP != current default measure value** (either a non-default menu choice or a custom override):
 
-> `Stock currently uses ERP X.XX% (manual override or non-default measure). Options: [1] Keep stored, [2] Accept default (trailing adj payout X.XX%), [3] Pick different ERP measure, [4] Custom ERP value`
+> `Stock currently uses ERP X.XX% (differs from current Damodaran default). Options: [1] Keep stored, [2] Accept default (trailing adj payout X.XX%), [3] Pick different ERP measure, [4] Custom ERP value`
 
 If user picks "different ERP measure", show a follow-up prompt:
 > `Select ERP measure: [1] Trailing 12mo adjusted payout X.XX%, [2] Trailing 12mo cash yield X.XX%, [3] Net cash yield X.XX%, [4] Normalized earnings & payout X.XX%, [5] Avg CF yield last 10y X.XX%`
@@ -197,12 +199,16 @@ Apply the result:
 | Custom value | Set to entered value | **Add** if not present |
 | Keep stored | No change | No change |
 
-**Risk-free rate:** Ask separately with a binary choice:
-> `Risk-free rate: current market value X.XX% (from Damodaran) or keep stored X.XX%?`
+**Risk-free rate:** Damodaran publishes only one T-bond rate, so this is a 3-choice prompt rather than a 5-measure menu:
+> `Risk-free rate: [1] Accept current market value X.XX% (from Damodaran), [2] Custom value, [3] Keep stored X.XX% (no change)`
 
-Apply:
-- Accept market → set `risk_free_rate` to fetched value, **remove** from `_manual_overrides` if present
-- Keep stored / custom value → set accordingly, **add** to `_manual_overrides` if the value differs from market
+Apply the result:
+
+| User choice | `risk_free_rate` | `_manual_overrides` for `risk_free_rate` |
+|---|---|---|
+| Accept market value | Set to fetched value | **Remove** if present |
+| Custom value | Set to entered value | **Add** if not present |
+| Keep stored | No change | No change |
 
 **Auto mode:**
 1. If market file was stale and fetch succeeded: update `market_risk_premium` and `risk_free_rate` to current market values, **unless** they are in `_manual_overrides`.
@@ -219,7 +225,7 @@ Terminal growth rate: X.X% (= risk-free rate)
 Projection years:     10
 ```
 
-If the user updates `risk_free_rate`, automatically update `terminal_growth_rate` to match (it defaults to the risk-free rate per `DCFAssumptions.__post_init__`).
+If the user updates `risk_free_rate`, explicitly set `assumptions.terminal_growth_rate = assumptions.risk_free_rate` at skill runtime. This is a skill-level responsibility: `DCFAssumptions.__post_init__` only sets the default at construction time and does not re-run on field updates, so calibrate must propagate Rf changes into `terminal_growth_rate` itself.
 
 ---
 
