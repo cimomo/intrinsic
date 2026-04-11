@@ -540,12 +540,11 @@ Damodaran sometimes transitions beta -> 1.0 and D/E -> industry average during t
 ### Phase 2 — Better inputs (items 9-12)
 
 **DONE (2 of 6):**
-- Item 10: Calibrate refreshes implied ERP and risk-free rate from Damodaran's homepage (monthly cadence), cached in data/_market.json with 30-day staleness. 5-measure menu + manual override support. Hardcoded defaults unchanged as offline fallback.
+- Item 10: Calibrate refreshes implied ERP and risk-free rate from Damodaran's homepage (monthly cadence), cached in data/_market.json with 30-day staleness. 5-measure menu + manual override support. Hardcoded defaults unchanged as offline fallback. See `docs/internal/2026-04-10-implied-erp-design.md` for the design.
 - Item 11: Rating-based cost of debt. Actual credit rating (web search) as primary, synthetic from interest coverage as fallback, Damodaran's January 2026 spread table. Large-firm and small-firm tables, auto-selected by market cap. Replaces broken `interest_expense / total_debt` heuristic.
 
 **Remaining:**
 - **#9 (bottom-up beta)** requires either hardcoding Damodaran's industry beta table or fetching it
-- ~~**#10 (implied ERP)**~~ **DONE.** Calibrate now actively refreshes market_risk_premium and risk_free_rate from Damodaran's homepage, cached in data/_market.json. See docs/internal/2026-04-10-implied-erp-design.md for the design. Hardcoded defaults (5.0%/4.5%) remain as offline fallback; calibrate overwrites them with current Damodaran values when online.
 - **#12 (cyclical normalization)** is a calibrate skill change
 - **#12b (value decomposition)** is a simple sanity check display — no model changes
 - **#12c (implied revenue / TAM)** is a calibrate or value sanity check — no model changes
@@ -559,7 +558,7 @@ Damodaran sometimes transitions beta -> 1.0 and D/E -> industry average during t
 
 ### Test count
 
-267 tests. Key additions:
+298 tests. Key additions:
 - 9 ROIC tests (metrics.py edge cases)
 - 10 terminal value tests (g/ROIC reinvestment, terminal ROIC default/override/guards)
 - 4 tax rate transition tests (interpolation, convergence, terminal uses marginal)
@@ -570,6 +569,7 @@ Damodaran sometimes transitions beta -> 1.0 and D/E -> industry average during t
 - 19 R&D amortizable life tests (sector/industry mapping, overrides, edge cases)
 - 14 R&D capitalization tests (asset, amortization, NOPAT delta, edge cases, year-N path, Damodaran spreadsheet verification)
 - 9 R&D integration tests (adjusted ROIC in DCF inputs, backward compatibility, NOPAT formula)
+- 31 market data tests (9 staleness check, 4 save round-trip, 18 load validation + plausibility bounds)
 
 ---
 
