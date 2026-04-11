@@ -341,9 +341,15 @@ Present the full historical table to the user before asking for a value.
 
 **Explain what the user is seeing:** Raw treats R&D as an operating expense, so invested capital excludes the accumulated research asset. Adjusted treats R&D as capital expenditure, so the research asset is part of invested capital — the denominator is larger, and the ratio is lower. Pick what reflects your view of the business's true capital intensity.
 
-**Question:** Use `AskUserQuestion` with these options:
+**If `assumptions.sales_to_capital_ratio` is already set** (e.g., the user is re-running calibrate), note the current saved value before asking the question: "Current saved value: X.Xx".
+
+**Question:** Use `AskUserQuestion`. If `dcf_inputs['adjusted_sales_to_capital']` is not None, offer three options:
 - Raw S/C (X.Xx)
-- Adjusted S/C (Y.Yx) — omit when `adjusted_sales_to_capital` is None
+- Adjusted S/C (Y.Yx)
+- Custom (user types a value)
+
+If `dcf_inputs['adjusted_sales_to_capital']` is None, offer two options:
+- Raw S/C (X.Xx)
 - Custom (user types a value)
 
 Store the answer to `assumptions.sales_to_capital_ratio`.
