@@ -5,12 +5,6 @@ description: Perform comprehensive stock analysis with DCF valuation
 
 Perform a comprehensive stock analysis for ticker symbol **$ARGUMENTS** by orchestrating the sub-skills in sequence.
 
-## Argument Parsing
-- Parse `$ARGUMENTS` to extract: **ticker** (first word) and optional **`--auto`** flag
-- `--auto` → passed to `/calibrate` (skips interactive assumption review)
-- Example: `/analyze MSFT --auto` → full automated pipeline, no user input needed
-- Example: `/analyze MSFT` → interactive calibration, user reviews assumptions
-
 ## Orchestration Steps:
 
 ### 1. Fetch Data
@@ -23,8 +17,7 @@ Perform a comprehensive stock analysis for ticker symbol **$ARGUMENTS** by orche
 
 ### 3. Calibrate Assumptions
 - Display: **"Step 3/5: Calibrating assumptions..."**
-- **If `--auto` flag:** Invoke `/calibrate {ticker} --auto` — fast, no user input, respects manual overrides (only adjusts non-override assumptions), ensures assumptions stay in sync with the latest research signals
-- **If no `--auto` flag:** Invoke `/calibrate {ticker}` — interactive mode, user reviews each core assumption with research context and data-driven recommendations
+- Invoke `/calibrate {ticker}` — walks through each assumption with research context and data-driven recommendations
 
 ### 4. Valuation
 - Display: **"Step 4/5: Running valuation..."**
