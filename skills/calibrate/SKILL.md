@@ -281,6 +281,8 @@ Go through these in order:
 
 **b. Operating Margin — Starting and Target**
 
+This assumption uses a custom two-question flow in place of the standard six-step protocol defined at the top of Section 6.
+
 **Display anchors before asking any questions.** Read the data once and show:
 
 ```
@@ -294,15 +296,17 @@ Omit the "Adjusted" row when `dcf_inputs['adjusted_operating_margin']` is `None`
 
 **Explain what the user is seeing:** Raw is what Alpha Vantage reports from GAAP financials (R&D expensed as an operating expense). Adjusted is what the business would show if R&D were treated as capital expenditure — amortized over N years rather than expensed in the year incurred. The adjusted number is the economic operating margin; the raw number is the accounting number. The anchors are reference points for your picks — pick values that reflect your view of the business, not an algorithmic default.
 
-**Question 1 — Starting operating margin (year 0).** Use `AskUserQuestion` with these options:
+**If `assumptions.operating_margin` is already set** (e.g., the user is re-running calibrate), note the current saved value before asking Q1: "Current saved value: X.X%".
+
+**Question 1 — Starting operating margin.** Use `AskUserQuestion` with these options:
 - Raw X.X%
 - Adjusted Y.Y% (omit when `adjusted_operating_margin` is None)
 - Custom (user types a value)
 
 Store the answer to `assumptions.operating_margin`. This is the margin the DCF uses for year 1 before any convergence.
 
-**Question 2 — Target operating margin (year 10 for linear convergence).** Use `AskUserQuestion` with these options:
-- Same as starting (flat margin, no convergence)
+**Question 2 — Target operating margin (year 10 for linear convergence).** When rendering these options, label "Same as starting" with the actual value the user picked in Q1 (e.g., "Same as starting — 47.5%") so the user knows what they are confirming. Use `AskUserQuestion` with these options:
+- Same as starting — X.X% (flat margin, no convergence — fill X.X% from Q1)
 - Expand to Z% (when there's a margin-expansion story — suggest a specific Z based on research, e.g. picked_starting + 2pp)
 - Contract to W% (when there's a margin-compression story)
 - Custom
@@ -311,7 +315,7 @@ When the user picks "same as starting," set `assumptions.target_operating_margin
 
 **Research context:** If research is available, factor in the Margin & Profitability → Margin signal when recommending. Example: "Research: Wide moat, durable pricing power — recommending starting at adjusted 47.5% and target 48% (slight expansion consistent with operating leverage)."
 
-**If the user picks values significantly above both raw and adjusted anchors, challenge constructively.** Example: "That's X pp above even the R&D-adjusted economic margin of Y.Y%. What specifically do you see that the numbers don't?"
+**If the user picks values more than 5 percentage points above both raw and adjusted anchors, challenge constructively.** Example: "That's X pp above even the R&D-adjusted economic margin of Y.Y%. What specifically do you see that the numbers don't?"
 
 Consider: is margin expanding or contracting? What's a realistic trajectory over 10 years?
 
