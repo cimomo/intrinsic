@@ -32,13 +32,22 @@ PYTHONPATH="${CLAUDE_PLUGIN_ROOT:-.}" python3 -c "from stock_analyzer import ...
 - Use `stock_analyzer.metrics.FinancialMetrics` to parse and format the data
 - Show:
   - Valuation metrics (P/E, PEG, P/B, etc.)
-  - Profitability metrics (margins, ROIC, ROE, ROA). When `dcf_inputs['adjusted_operating_margin']`, `dcf_inputs['adjusted_sales_to_capital']`, and `dcf_inputs['adjusted_roic']` are available, display all three on the adjusted basis with raw shown in parentheses:
-    - `"Operating Margin: X.X% (adjusted, R&D capitalized) | Y.Y% raw GAAP"`
-    - `"Sales-to-Capital: Z.Zx (adjusted) | W.Wx raw"`
-    - `"ROIC: A.A% (adjusted, N-year amortization) | B.B% unadjusted"`
-    - Set `metrics.roic = dcf_inputs['adjusted_roic']`
-    - Show research asset: `"Research Asset: $XXB | R&D/Revenue: X.X%"`
-    - If no R&D data: display raw values only and `metrics.roic = dcf_inputs['roic']` (same as before)
+  - Profitability metrics (margins, ROIC, ROE, ROA). When R&D capitalization data is available (`dcf_inputs['adjusted_operating_margin']` is not None), display raw and adjusted symmetrically as reference anchors — neither is primary:
+    ```
+    Operating Margin:
+      Raw (GAAP, R&D expensed):      X.X%
+      Adjusted (R&D capitalized):    Y.Y%   [N-year amortization]
+    Sales-to-Capital:
+      Raw:                           X.Xx
+      Adjusted:                      Y.Yx
+    ROIC:
+      Raw (GAAP):                    X.X%
+      Adjusted (R&D capitalized):    Y.Y%
+    Research Asset: $XXB | R&D/Revenue: X.X%
+    ```
+    Raw is the GAAP accounting view; adjusted treats R&D as amortized capital to show the economic view. Neither is "the" metric — they are two reference anchors for the user's judgment. The DCF below runs on whichever basis the user explicitly picked in `/calibrate`, or raw GAAP when uncalibrated.
+    - Leave `metrics.roic` at its default (`dcf_inputs['roic']`, raw) — no override. Raw and adjusted ROIC appear as separate rows above.
+    - If no R&D data (`dcf_inputs['adjusted_operating_margin']` is None): display single-row Operating Margin / ROIC from `metrics` as before, no raw/adjusted split, no Sales-to-Capital row.
   - Growth rates
   - Financial health indicators
   - Per-share metrics
