@@ -542,6 +542,7 @@ Damodaran sometimes transitions beta -> 1.0 and D/E -> industry average during t
 **DONE (2 of 6):**
 - Item 10: Calibrate refreshes implied ERP and risk-free rate from Damodaran's homepage (monthly cadence), cached in data/_market.json with 30-day staleness. 5-measure menu + manual override support. Hardcoded defaults unchanged as offline fallback. See `docs/internal/2026-04-10-implied-erp-design.md` for the design.
 - Item 11: Rating-based cost of debt. Actual credit rating (web search) as primary, synthetic from interest coverage as fallback, Damodaran's January 2026 spread table. Large-firm and small-firm tables, auto-selected by market cap. Replaces broken `interest_expense / total_debt` heuristic.
+- Housekeeping: Auto mode removed from /calibrate and /analyze. Calibration is now interactive-only. See `docs/internal/2026-04-10-remove-auto-mode-design.md`.
 
 **Remaining:**
 - **#9 (bottom-up beta)** requires either hardcoding Damodaran's industry beta table or fetching it

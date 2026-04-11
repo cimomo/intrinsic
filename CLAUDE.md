@@ -9,10 +9,10 @@ Stock analysis plugin for Claude Code. Combines qualitative research with DCF va
 ```
 /fetch <ticker> [sources...]        # Fetch & cache financial data from Alpha Vantage
 /research <ticker>                 # Qualitative analysis -> saves research_YYYY-MM-DD.md
-/calibrate <ticker> [--auto]       # Walk through DCF assumptions (interactive or auto)
+/calibrate <ticker>                # Walk through DCF assumptions
 /value <ticker>                    # Metrics + DCF valuation -> saves valuation_YYYY-MM-DD.md
 /report <ticker>                   # Synthesize research + valuation -> saves analysis_YYYY-MM-DD.md
-/analyze <ticker> [--auto]          # Orchestrator: fetch -> research -> calibrate -> value -> report
+/analyze <ticker>                   # Orchestrator: fetch -> research -> calibrate -> value -> report
 ```
 
 ## Architecture
@@ -41,7 +41,7 @@ The `/analyze` skill chains sub-skills in sequence:
 
 1. `/fetch` -> fetches fresh data (including current quote price)
 2. `/research` -> saves `research_YYYY-MM-DD.md`
-3. `/calibrate --auto` -> calibrates DCF assumptions from research signals
+3. `/calibrate` -> walks through DCF assumptions with research signals
 4. `/value` -> saves `valuation_YYYY-MM-DD.md`
 5. `/report` -> saves `analysis_YYYY-MM-DD.md`
 

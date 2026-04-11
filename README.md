@@ -24,7 +24,7 @@ Requires Python 3.10+ with `requests` (`pip install requests`) and an [Alpha Van
 /analyze MSFT
 ```
 
-Takes a few minutes. Produces a research document, a DCF valuation, and an investment report — all saved to `data/MSFT/`. Add `--auto` to skip interactive calibration.
+Takes a few minutes. Produces a research document, a DCF valuation, and an investment report — all saved to `data/MSFT/`.
 
 ## How it works
 
@@ -101,7 +101,7 @@ Valid fetch sources: `overview`, `income_annual`, `income_quarterly`, `balance_s
 
 ## Assumptions persist
 
-DCF assumptions are saved per stock. Manual overrides — values you set during interactive calibration — are tracked separately. When you run `/analyze MSFT --auto` next quarter, auto-calibration updates data-driven assumptions from fresh research but leaves your overrides intact. Your views persist; everything else stays current.
+DCF assumptions are saved per stock. Values you set explicitly during calibration are tracked as **manual overrides**. When you re-run `/analyze MSFT` next quarter, calibrate shows updated recommendations from fresh research and flags your overrides — so you can keep them or revise them deliberately. Your views persist; everything else stays current.
 
 ## Output
 
