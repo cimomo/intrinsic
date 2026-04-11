@@ -32,11 +32,13 @@ PYTHONPATH="${CLAUDE_PLUGIN_ROOT:-.}" python3 -c "from stock_analyzer import ...
 - Use `stock_analyzer.metrics.FinancialMetrics` to parse and format the data
 - Show:
   - Valuation metrics (P/E, PEG, P/B, etc.)
-  - Profitability metrics (margins, ROIC, ROE, ROA). Set ROIC on the `CompanyMetrics` object:
-    - If `dcf_inputs['adjusted_roic']` is available: `metrics.roic = dcf_inputs['adjusted_roic']`
-    - Display both: "ROIC: X.X% (R&D capitalized, Y-year amortization) | Unadjusted: Z.Z%"
-    - Show research asset: "Research Asset: $XXB | R&D/Revenue: X.X%"
-    - If no R&D data: `metrics.roic = dcf_inputs['roic']` (same as before)
+  - Profitability metrics (margins, ROIC, ROE, ROA). When `dcf_inputs['adjusted_operating_margin']`, `dcf_inputs['adjusted_sales_to_capital']`, and `dcf_inputs['adjusted_roic']` are available, display all three on the adjusted basis with raw shown in parentheses:
+    - `"Operating Margin: X.X% (adjusted, R&D capitalized) | Y.Y% raw GAAP"`
+    - `"Sales-to-Capital: Z.Zx (adjusted) | W.Wx raw"`
+    - `"ROIC: A.A% (adjusted, N-year amortization) | B.B% unadjusted"`
+    - Set `metrics.roic = dcf_inputs['adjusted_roic']`
+    - Show research asset: `"Research Asset: $XXB | R&D/Revenue: X.X%"`
+    - If no R&D data: display raw values only and `metrics.roic = dcf_inputs['roic']` (same as before)
   - Growth rates
   - Financial health indicators
   - Per-share metrics
