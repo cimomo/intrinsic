@@ -182,7 +182,9 @@ Use `AskUserQuestion` with this prompt:
 
 **Interactive mode, stored ERP != current default measure value** (either a non-default menu choice or a custom override):
 
-> `Stock currently uses ERP X.XX% (differs from current Damodaran default). Options: [1] Keep stored, [2] Accept default (trailing adj payout X.XX%), [3] Pick different ERP measure, [4] Custom ERP value`
+> `Stock currently uses ERP X.XX% ({match_description} — computed in step 3b). Options: [1] Keep stored, [2] Accept default (trailing adj payout X.XX%), [3] Pick different ERP measure, [4] Custom ERP value`
+
+The `{match_description}` here is the same label computed in step 3b — either "matches measure [N] {measure_label}" when the stored value equals a non-default Damodaran measure, or "manual override — does not match current Damodaran measures" when it doesn't match any. Reusing the match description keeps the user-facing text precise about whether their historical choice still corresponds to a Damodaran-published measure.
 
 If user picks "different ERP measure", show a follow-up prompt:
 > `Select ERP measure: [1] Trailing 12mo adjusted payout X.XX%, [2] Trailing 12mo cash yield X.XX%, [3] Net cash yield X.XX%, [4] Normalized earnings & payout X.XX%, [5] Avg CF yield last 10y X.XX%`
