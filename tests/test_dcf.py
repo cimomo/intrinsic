@@ -977,3 +977,27 @@ class TestRdAdjustedBasis:
         result = model.calculate_fair_value(adjusted_financial_data, shares_outstanding=1e10, current_price=100.0, verbose=True)
         # The result dict exposes the base operating margin used
         assert result['operating_margin'] == pytest.approx(0.475, rel=1e-9)
+
+    def test_dcf_uses_adjusted_sales_to_capital_when_assumption_is_none(self, adjusted_financial_data):
+        """When user hasn't set S/C assumption, DCF should prefer adjusted_sales_to_capital over the raw balance-sheet fallback."""
+        assumptions = DCFAssumptions(
+            revenue_growth_rate=0.10,
+            terminal_growth_rate=0.04,
+            sales_to_capital_ratio=None,  # force fallback path
+            terminal_roic=0.15,
+        )
+        model = DCFModel(assumptions)
+        result = model.calculate_fair_value(adjusted_financial_data, shares_outstanding=1e10, current_price=100.0, verbose=True)
+        assert result['sales_to_capital'] == pytest.approx(1.35, rel=1e-9)
+
+    def test_dcf_user_assumption_still_wins_over_adjusted(self, adjusted_financial_data):
+        """User-set sales_to_capital_ratio assumption overrides both adjusted and raw."""
+        assumptions = DCFAssumptions(
+            revenue_growth_rate=0.10,
+            terminal_growth_rate=0.04,
+            sales_to_capital_ratio=2.5,  # user override
+            terminal_roic=0.15,
+        )
+        model = DCFModel(assumptions)
+        result = model.calculate_fair_value(adjusted_financial_data, shares_outstanding=1e10, current_price=100.0, verbose=True)
+        assert result['sales_to_capital'] == pytest.approx(2.5, rel=1e-9)

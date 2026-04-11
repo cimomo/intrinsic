@@ -415,6 +415,8 @@ class DCFModel:
         # Where Invested Capital = Equity + Debt - Cash - Non-operating Investments
         if self.assumptions.sales_to_capital_ratio is not None:
             sales_to_capital = self.assumptions.sales_to_capital_ratio
+        elif financial_data.get('adjusted_sales_to_capital') is not None:
+            sales_to_capital = financial_data['adjusted_sales_to_capital']
         else:
             # Calculate invested capital from balance sheet
             equity = financial_data.get('equity', market_cap)  # Book value of equity
