@@ -1003,3 +1003,68 @@ class TestDcfMarginRawOrUserFallback:
             verbose=True,
         )
         assert result['operating_margin'] == pytest.approx(0.55, rel=1e-9)
+
+
+class TestDcfSalesToCapitalRawOrUserFallback:
+    """R&D informational reframe: dcf.py S/C resolution is user-or-raw.
+
+    adjusted_sales_to_capital in financial_data must be ignored by the DCF —
+    it is purely a display field now.
+    """
+
+    @pytest.fixture
+    def financial_data_with_adjusted(self):
+        return {
+            'revenue': 200_000_000_000,
+            'operating_income': 80_000_000_000,
+            'total_debt': 50_000_000_000,
+            'cash': 20_000_000_000,
+            'short_term_investments': 10_000_000_000,
+            'long_term_investments': 5_000_000_000,
+            'equity': 100_000_000_000,         # raw IC = 100 + 50 - 20 - 10 - 5 = 115
+            'market_cap': 2_000_000_000_000,
+            'beta': 1.1,
+            'adjusted_operating_margin': 0.475,
+            'adjusted_sales_to_capital': 1.35,  # must NOT be used
+        }
+
+    def test_dcf_uses_raw_sc_when_user_assumption_unset(self, financial_data_with_adjusted):
+        """When sales_to_capital_ratio is None, DCF uses raw Rev/IC, NOT adjusted_sales_to_capital.
+
+        Raw IC = equity + total_debt - cash - sti - lti = 100B + 50B - 20B - 10B - 5B = 115B.
+        Raw S/C = 200B / 115B ≈ 1.7391. Adjusted is 1.35. The DCF MUST pick raw.
+        """
+        assumptions = DCFAssumptions(
+            revenue_growth_rate=0.10,
+            terminal_growth_rate=0.04,
+            operating_margin=0.40,            # pinned to isolate S/C
+            sales_to_capital_ratio=None,      # unset — fallback path
+            terminal_roic=0.15,
+        )
+        model = DCFModel(assumptions)
+        result = model.calculate_fair_value(
+            financial_data_with_adjusted,
+            shares_outstanding=1e10,
+            current_price=100.0,
+            verbose=True,
+        )
+        expected_raw_sc = 200_000_000_000 / 115_000_000_000
+        assert result['sales_to_capital'] == pytest.approx(expected_raw_sc, rel=1e-9)
+
+    def test_dcf_uses_user_sc_when_set(self, financial_data_with_adjusted):
+        """User-set sales_to_capital_ratio wins over both raw and adjusted."""
+        assumptions = DCFAssumptions(
+            revenue_growth_rate=0.10,
+            terminal_growth_rate=0.04,
+            operating_margin=0.40,
+            sales_to_capital_ratio=2.5,       # user pick
+            terminal_roic=0.15,
+        )
+        model = DCFModel(assumptions)
+        result = model.calculate_fair_value(
+            financial_data_with_adjusted,
+            shares_outstanding=1e10,
+            current_price=100.0,
+            verbose=True,
+        )
+        assert result['sales_to_capital'] == pytest.approx(2.5, rel=1e-9)
