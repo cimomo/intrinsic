@@ -55,7 +55,7 @@ This is where assumptions get pressure-tested.
 
 Before you set a single number, calibrate calculates what growth rate the current stock price already implies. This anchors everything: if you assume 20% growth and the market prices in 13%, the tool asks you directly — what do you see that the market doesn't?
 
-For each core assumption (revenue growth, operating margin, sales-to-capital ratio), calibrate shows what the data suggests, what the research signals point to, and a recommended value with reasoning. In interactive mode, you choose: recommended, current, or your own value. Your own values are tracked as **manual overrides** — specific bets that persist across future runs.
+For each core assumption (revenue growth, operating margin, sales-to-capital ratio), calibrate shows what the data suggests, what the research signals point to, and a recommended value with reasoning. You choose: recommended, current, or your own value. Your own values are tracked as **manual overrides** — specific bets that persist across future runs.
 
 After all assumptions are set, three checks run:
 
