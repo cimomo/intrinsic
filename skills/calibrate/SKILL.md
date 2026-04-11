@@ -279,11 +279,41 @@ Go through these in order:
 - Consider: is growth accelerating or decelerating? Is the current assumption realistic?
 - If the user picks a value significantly above the market-implied rate from the reverse DCF, challenge constructively: "That's X% above what the market prices in. What specifically do you see that the market doesn't?" This isn't to block them — it's to ensure the choice is deliberate.
 
-**b. Operating Margin / Target Operating Margin**
-- **Primary anchor (when `dcf_inputs['adjusted_operating_margin']` is present):** Current adjusted margin (R&D capitalized) is the anchor for the target. Display as: `"Current margin: X.X% adjusted (R&D capitalized, N-year amortization) | Y.Y% raw GAAP"`. Adjusted is the economic margin — what the business would show if R&D were treated as capex; raw is what Alpha Vantage reports from GAAP financials.
-- **Fallback (when adjusted is None — zero-R&D companies):** Display raw operating margin only.
-- **Historical trend:** Show raw 5-year margin range as directional context — is the company expanding or compressing margin? Note that true multi-year adjusted margin history is unavailable given Alpha Vantage's 5-year data window and typical amortization lives, so the historical trend is shown on the raw scale and interpreted as directional.
-- Consider: is margin expanding or contracting? What's a realistic target on the adjusted basis?
+**b. Operating Margin — Starting and Target**
+
+**Display anchors before asking any questions.** Read the data once and show:
+
+```
+Current operating margin:
+  Raw (GAAP, R&D expensed):       X.X%
+  Adjusted (R&D capitalized):     Y.Y%   [N-year amortization]
+  5-year raw range:               A.A% – B.B%   [trend: expanding / stable / compressing]
+```
+
+Omit the "Adjusted" row when `dcf_inputs['adjusted_operating_margin']` is `None` (zero-R&D companies). Use `dcf_inputs['rd_amortizable_life']` for the N-year note. The raw historical range comes from the 5-year annual income statement; if Alpha Vantage coverage is short, state how many years you have.
+
+**Explain what the user is seeing:** Raw is what Alpha Vantage reports from GAAP financials (R&D expensed as an operating expense). Adjusted is what the business would show if R&D were treated as capital expenditure — amortized over N years rather than expensed in the year incurred. The adjusted number is the economic operating margin; the raw number is the accounting number. The anchors are reference points for your picks — pick values that reflect your view of the business, not an algorithmic default.
+
+**Question 1 — Starting operating margin (year 0).** Use `AskUserQuestion` with these options:
+- Raw X.X%
+- Adjusted Y.Y% (omit when `adjusted_operating_margin` is None)
+- Custom (user types a value)
+
+Store the answer to `assumptions.operating_margin`. This is the margin the DCF uses for year 1 before any convergence.
+
+**Question 2 — Target operating margin (year 10 for linear convergence).** Use `AskUserQuestion` with these options:
+- Same as starting (flat margin, no convergence)
+- Expand to Z% (when there's a margin-expansion story — suggest a specific Z based on research, e.g. picked_starting + 2pp)
+- Contract to W% (when there's a margin-compression story)
+- Custom
+
+When the user picks "same as starting," set `assumptions.target_operating_margin = None` so the DCF's existing "no convergence" path runs. Otherwise store the picked value to `assumptions.target_operating_margin`.
+
+**Research context:** If research is available, factor in the Margin & Profitability → Margin signal when recommending. Example: "Research: Wide moat, durable pricing power — recommending starting at adjusted 47.5% and target 48% (slight expansion consistent with operating leverage)."
+
+**If the user picks values significantly above both raw and adjusted anchors, challenge constructively.** Example: "That's X pp above even the R&D-adjusted economic margin of Y.Y%. What specifically do you see that the numbers don't?"
+
+Consider: is margin expanding or contracting? What's a realistic trajectory over 10 years?
 
 **c. Sales-to-Capital Ratio**
 - **Primary anchor (when `dcf_inputs['adjusted_sales_to_capital']` is present):** Current adjusted S/C (Revenue / Adjusted Invested Capital, where Adjusted Invested Capital includes the research asset) is the anchor. Display as: `"Current S/C: X.Xx adjusted (research asset capitalized) | Y.Yx raw"`. Adjusted is the economic ratio; raw treats R&D as an expense.
