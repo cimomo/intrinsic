@@ -135,7 +135,7 @@ ROIC appears throughout the model:
 - **Value-of-growth check** — if ROIC < WACC, growth destroys value
 - **Terminal ROIC selection** — moat strength determines how much excess return persists in perpetuity
 
-Two ROIC values are computed: **unadjusted** (GAAP operating income, R&D as expense) and **adjusted** (R&D capitalized per Damodaran). For R&D-heavy companies, the adjusted ROIC is the primary measure — it reflects the true return on all capital deployed, including intangible R&D capital. See [R&D capitalization](#rd-capitalization) for the full methodology.
+Two ROIC values are computed: **unadjusted** (GAAP operating income, R&D as expense) and **adjusted** (R&D capitalized per Damodaran). For R&D-heavy companies, the adjusted ROIC is a useful reference anchor for deliberate investors — it reflects the true return on all capital deployed, including intangible R&D capital. See [R&D capitalization](#rd-capitalization) for how adjusted values flow (or deliberately don't flow) into the DCF.
 
 ---
 
@@ -145,7 +145,7 @@ GAAP treats R&D as an operating expense. For valuation, Damodaran treats it as a
 
 **Role in our model: informational, not algorithmic.** The adjusted margin, S/C, and ROIC computed from R&D capitalization serve a display role. They appear in `calibrate` as reference anchors alongside raw GAAP values, and in `value`'s metrics table. They do NOT automatically flow into the DCF's projection math. The user explicitly picks starting operating margin, target operating margin, sales-to-capital ratio, and terminal ROIC in calibration; the DCF runs on those picks. When uncalibrated, the DCF falls back to raw GAAP values.
 
-This is a deliberate divergence from Damodaran's `fcffginzu.xls`, which grosses up projection-starting EBIT by `delta × (1 + t_marginal)` to plumb adjusted values through the forward projection automatically. Our approach trades that automation for user deliberation — `calibrate` is designed as a thinking tool for a deliberate investor, not a plug-and-play calculator.
+This is a deliberate divergence from Damodaran's `fcffginzu.xls`, which adjusts the projection-starting EBIT as `EBIT + delta × (1 + t_marginal)` — an engineering approximation of the canonical pre-tax add-back — to plumb adjusted values through the forward projection automatically. Our approach trades that automation for user deliberation — `calibrate` is designed as a thinking tool for a deliberate investor, not a plug-and-play calculator.
 
 **Research asset** — straight-line amortization over N years, using pre-tax R&D (verified from Damodaran's R&DConv.xls spreadsheet):
 
