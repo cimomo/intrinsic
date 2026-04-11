@@ -942,3 +942,38 @@ class TestEquityBridge:
         assert match is not None
         base_case_from_table = float(match.group(1).replace(',', ''))
         assert base_case_from_table == pytest.approx(r['fair_value'], rel=0.01)
+
+
+class TestRdAdjustedBasis:
+    """Tests for R&D adjusted-basis consistency — DCF prefers adjusted fields when present."""
+
+    @pytest.fixture
+    def adjusted_financial_data(self):
+        """Financial data with both raw and adjusted fields populated."""
+        return {
+            'revenue': 200_000_000_000,
+            'operating_income': 80_000_000_000,      # raw: 40% margin
+            'total_debt': 50_000_000_000,
+            'cash': 20_000_000_000,
+            'short_term_investments': 10_000_000_000,
+            'long_term_investments': 5_000_000_000,
+            'equity': 100_000_000_000,
+            'market_cap': 2_000_000_000_000,
+            'beta': 1.1,
+            'adjusted_operating_margin': 0.475,      # 47.5% economic margin
+            'adjusted_sales_to_capital': 1.35,       # derived elsewhere
+            'adjusted_invested_capital': 140_000_000_000,
+        }
+
+    def test_dcf_uses_adjusted_operating_margin_when_present(self, adjusted_financial_data):
+        """Year-1 margin should be 47.5% (adjusted), not 40% (raw EBIT/Revenue)."""
+        assumptions = DCFAssumptions(
+            revenue_growth_rate=0.10,
+            terminal_growth_rate=0.04,
+            sales_to_capital_ratio=1.0,  # pinned so we isolate margin
+            terminal_roic=0.15,
+        )
+        model = DCFModel(assumptions)
+        result = model.calculate_fair_value(adjusted_financial_data, shares_outstanding=1e10, current_price=100.0, verbose=True)
+        # The result dict exposes the base operating margin used
+        assert result['operating_margin'] == pytest.approx(0.475, rel=1e-9)

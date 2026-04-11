@@ -406,6 +406,7 @@ class DCFModel:
         # Calculate margins and ratios
         operating_margin = (
             self.assumptions.operating_margin or
+            financial_data.get('adjusted_operating_margin') or
             (operating_income / revenue if revenue > 0 else 0.15)
         )
 
