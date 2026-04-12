@@ -278,7 +278,7 @@ Controls how much reinvestment is needed to sustain terminal growth.
 
 The calibration process recommends a terminal ROIC as a fixed spread above WACC based on moat strength: no moat = WACC, durable moat = WACC + 2%, truly exceptional = WACC + 5%. The spread reflects moat strength independent of the cost of capital. Current ROIC is shown as context but does not anchor the recommendation — it is often cyclically inflated and should not drive perpetuity assumptions.
 
-**Guards:** Terminal ROIC must be positive and at least equal to the terminal growth rate. Otherwise the company would need to invest more than it earns just to sustain terminal growth — a mathematical impossibility in perpetuity.
+**Guards:** Terminal ROIC must be positive and at least equal to the terminal growth rate (floor). Capped at WACC + 5% (ceiling) — even the strongest moats face competitive pressure over decades.
 
 ---
 
