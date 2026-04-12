@@ -103,7 +103,11 @@ Derive these from the financial data first, so WACC is established before any ju
        No agency rating found — using synthetic
      ```
   5. Set `cost_of_debt` in assumptions to the computed value.
-  - **Manual override:** If `cost_of_debt` is in `_manual_overrides`, keep the user's value: "Cost of debt: keeping manual override at X.X% (Rating suggests Y.Y%)"
+  6. **Sanity check:** After computing or loading cost_of_debt, validate it against risk_free_rate:
+     - If `cost_of_debt < risk_free_rate`: warn and recompute: "Stored cost_of_debt (X.X%) is below risk-free rate (Y.Y%) — economically impossible for any corporate debt. Likely cause: stored as after-tax or legacy value. Recomputing from credit rating."
+     - If `cost_of_debt > 15%`: warn: "Cost of debt (X.X%) is unusually high — verify the credit rating and spread."
+     - This check applies to both freshly computed and loaded values, including manual overrides.
+  - **Manual override:** If `cost_of_debt` is in `_manual_overrides`, keep the user's value — but still run the sanity check. If the override fails validation, warn and ask: "Override (X.X%) is below risk-free rate. Keep it, or recompute from rating? [recompute / keep]"
 - **Tax Rate (marginal):** Default 21% for US companies. Only change if the company is domiciled in a different tax jurisdiction. Display: "Tax rate (marginal): 21%"
 - **Effective Tax Rate:** Calculate from income statement: tax expense / pre-tax income. Set as `effective_tax_rate` in assumptions. The DCF model transitions from this rate in year 1 to the marginal rate by year 10. Terminal value always uses marginal. Display: "Effective tax rate: X.X% (from income statement) → transitions to 21% marginal"
   - If effective rate is within 2% of marginal, skip the transition — set `effective_tax_rate` to None and note: "Effective rate (X.X%) is close to marginal (21%) — no transition needed"
