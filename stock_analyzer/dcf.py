@@ -570,13 +570,32 @@ class DCFModel:
         if max_iterations <= 0:
             return None
 
+        original_growth = self.assumptions.revenue_growth_rate
+
+        # Probe the forward DCF once with a plausible growth rate. Structural
+        # ValueErrors (missing fields, bad shares/price) are not growth-rate
+        # dependent — if the probe raises, every binary-search iteration will
+        # also raise, the search would silently collapse to a bound, and the
+        # caller would get a bogus {'implied_value': -0.0999, ...} result.
+        # Re-raise with a hint so the caller can fix the input shape.
+        self.assumptions.revenue_growth_rate = 0.10
+        try:
+            self.calculate_fair_value(financial_data, shares_outstanding, target_price, verbose=False)
+        except ValueError as e:
+            self.assumptions.revenue_growth_rate = original_growth
+            raise ValueError(
+                f"reverse_dcf cannot solve: forward DCF fails on these inputs. "
+                f"Pass the dcf_inputs dict from FinancialMetrics.calculate_dcf_inputs(), "
+                f"not raw cached financial_data. Underlying error: {e}"
+            ) from e
+        finally:
+            self.assumptions.revenue_growth_rate = original_growth
+
         low = -0.10  # Allow negative growth (declining companies)
         high = 0.50
         mid = (low + high) / 2
         fair_value = 0.0
         result = {}
-
-        original_growth = self.assumptions.revenue_growth_rate
 
         for _ in range(max_iterations):
             mid = (low + high) / 2

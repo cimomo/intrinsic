@@ -784,6 +784,41 @@ class TestReverseDCF:
         assert result is not None
         assert result['implied_value'] < 0
 
+    def test_raises_on_invalid_input_shape(self):
+        """reverse_dcf must raise ValueError if the forward DCF can't run at all,
+        rather than silently collapsing the binary search to a bound.
+
+        Regression test: previously, passing raw cached financial_data (instead of
+        the dcf_inputs dict) caused every iteration to raise internally, the
+        binary search collapsed to the low bound (-10% growth), and the function
+        returned a bogus {'implied_value': -0.0999, 'fair_value': 0.0} result."""
+        model = DCFModel(DCFAssumptions())
+        # Shape that mirrors the top-level cached data.data dict — has nested
+        # 'overview', 'income_statement_annual', etc., but NOT the flat
+        # revenue/operating_income/market_cap keys calculate_fair_value requires.
+        raw_cached_like = {
+            'overview': {'Name': 'ACME', 'Symbol': 'ACME'},
+            'income_statement_annual': {'reports': []},
+            'balance_sheet': {'reports': []},
+        }
+        with pytest.raises(ValueError, match="dcf_inputs|required fields"):
+            model.reverse_dcf(raw_cached_like, 10e9, 100.0)
+
+    def test_does_not_return_bogus_result_on_missing_fields(self):
+        """Even if the caller ignores the exception, reverse_dcf must not return
+        a structurally-valid dict pointing to a bound-collapsed bogus growth rate."""
+        model = DCFModel(DCFAssumptions())
+        try:
+            result = model.reverse_dcf({'revenue': None}, 10e9, 100.0)
+        except ValueError:
+            # Raising is the correct behavior — test passes.
+            return
+        # If it didn't raise, the old silent-failure bug is back.
+        assert result is None, (
+            f"reverse_dcf returned {result!r} on invalid input; "
+            "this is the silent-failure regression."
+        )
+
 
 # --- Sensitivity Table ---
 
