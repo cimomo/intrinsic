@@ -75,7 +75,7 @@ Assumptions are split into three tiers based on how much attention they need:
 - Initialize `StockManager` and load existing assumptions for **$ARGUMENTS**
 - Load `_manual_overrides` via `StockManager.load_manual_overrides(symbol)`
 - Load cached financial data via `StockManager.load_financial_data()` if available
-- When calling `FinancialMetrics.calculate_dcf_inputs()`, pass `income_annual=` with the annual income statement reports from cached data (`financial_data['data']['income_statement_annual']['reports']`). This enables R&D capitalization for adjusted ROIC.
+- When calling `FinancialMetrics.calculate_dcf_inputs()`, pass `income_annual=` with the annual income statement reports from cached data (`cached['data']['income_statement_annual']['reports']`). This enables R&D capitalization for adjusted ROIC.
 - Display the current assumptions file contents
 
 ### 1b. Load Research Context (if available)

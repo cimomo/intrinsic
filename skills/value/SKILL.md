@@ -54,7 +54,7 @@ implied = model.reverse_dcf(dcf_inputs, shares, price)               # also dcf_
   - **If `was_loaded` is True:** "Using calibrated assumptions" + show which are manual overrides (e.g., "2 manual overrides: revenue_growth_rate, sales_to_capital_ratio")
   - **If `was_loaded` is False:** "Using default assumptions — consider running /calibrate first"
 - Display the loaded assumptions summary
-- When calling `FinancialMetrics.calculate_dcf_inputs()`, pass `income_annual=` with the annual income statement reports from cached data (`financial_data['data']['income_statement_annual']['reports']`). This enables R&D capitalization for adjusted ROIC.
+- When calling `FinancialMetrics.calculate_dcf_inputs()`, pass `income_annual=` with the annual income statement reports from cached data (`cached['data']['income_statement_annual']['reports']`). This enables R&D capitalization for adjusted ROIC.
 - Try `StockManager.load_financial_data("$ARGUMENTS")` to check for cached data
 - **If cached data exists:** Use it (display "Using cached data from {fetched_at}")
 - **If no cached data:** Invoke `/fetch $ARGUMENTS` first, then load the cached data
