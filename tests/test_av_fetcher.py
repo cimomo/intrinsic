@@ -188,14 +188,14 @@ class TestFetchIncomeStatement:
         result = fetcher.fetch_income_statement(period="annual", limit=3)
         assert result["symbol"] == "MSFT"
         assert len(result["reports"]) == 3
-        assert "annualReports" in result
+        assert "reports" in result
 
     @patch("stock_analyzer.av_fetcher._requests")
     def test_quarterly_reports(self, mock_requests, fetcher):
         mock_requests.get.return_value = _mock_response(SAMPLE_INCOME)
         result = fetcher.fetch_income_statement(period="quarterly", limit=2)
         assert len(result["reports"]) == 2
-        assert "quarterlyReports" in result
+        assert "reports" in result
 
     @patch("stock_analyzer.av_fetcher._requests")
     def test_empty_reports_returns_none(self, mock_requests, fetcher):

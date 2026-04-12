@@ -104,7 +104,6 @@ class AlphaVantageFetcher:
 
             return {
                 "symbol": self.symbol,
-                key: reports,
                 "reports": reports,
             }
         except Exception as e:
@@ -125,7 +124,6 @@ class AlphaVantageFetcher:
 
             return {
                 "symbol": self.symbol,
-                key: reports,
                 "reports": reports,
             }
         except Exception as e:
@@ -146,7 +144,6 @@ class AlphaVantageFetcher:
 
             return {
                 "symbol": self.symbol,
-                key: reports,
                 "reports": reports,
             }
         except Exception as e:
