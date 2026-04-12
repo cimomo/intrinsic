@@ -269,7 +269,7 @@ WACC: X.X%
 - Round to nearest integer (X%)
 - Custom
 
-Store the answer to `assumptions.cost_of_capital`. If the user picks computed WACC, set `cost_of_capital` to `None` (use WACC components) and remove from `_manual_overrides`. If the user picks a custom value or keeps an override, add to `_manual_overrides`.
+Store the answer to `assumptions.cost_of_capital`. If the user picks computed WACC, set `cost_of_capital` to `None` (use WACC components) and remove from `_manual_overrides`. If the user picks a rounded value, custom value, or keeps an override, add to `_manual_overrides`.
 
 If a hurdle rate is set (existing or new), display:
 ```
