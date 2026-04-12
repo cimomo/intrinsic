@@ -57,11 +57,10 @@ Before you set a single number, calibrate calculates what growth rate the curren
 
 For each core assumption (revenue growth, operating margin, sales-to-capital ratio), calibrate shows what the data suggests, what the research signals point to, and a recommended value with reasoning. You choose: recommended, current, or your own value. Your own values are tracked as **manual overrides** — specific bets that persist across future runs.
 
-After all assumptions are set, three checks run:
+After all assumptions are set, two checks run:
 
 - **Coherence check** — do the assumptions make sense together? High growth + expanding margins + efficient capital use is a compounding bet. If all three lean bullish, it says so directly.
 - **Sensitivity analysis** — which assumption has the biggest impact on fair value? If it's also the one with Low confidence from research, it flags the combination.
-- **Pre-mortem** — "assume this stock drops 40% in 12 months. What went wrong?"
 
 ### 4. Value
 
