@@ -358,15 +358,19 @@ Consider: is margin expanding or contracting? What's a realistic trajectory over
 
 ```
 Current sales-to-capital:
-  Raw (R&D expensed):               X.Xx   (= revenue / (equity + debt - cash - investments))
-  Adjusted (R&D capitalized):       Y.Yx   (= revenue / (raw IC + research asset))
+  Raw (R&D expensed):               X.Xx   (= revenue / IC)
+  Adjusted (R&D capitalized):       Y.Yx   (= revenue / (IC + research asset))
+
+  where IC = equity + total_debt - cash - ST investments - LT investments
 ```
 
 Omit the "Adjusted" row when `dcf_inputs['adjusted_sales_to_capital']` is `None`.
 
 **Historical trend (raw, directional context):** Always calculate 5+ years of historical raw data. Compute both:
-- **Raw Average S/C** = Revenue / Invested Capital (Equity + Debt - Cash - Investments)
+- **Raw Average S/C** = Revenue / Invested Capital
 - **Raw Incremental S/C** = ΔRevenue / ΔInvested Capital (year-over-year — this is what the DCF model uses during projection years)
+
+**IC formula for all years:** `equity + total_debt - cash - short_term_investments - long_term_investments`. This is the same formula used by `FinancialMetrics.calculate_dcf_inputs()`. Do NOT use a different set of deductions — for companies with large short-term investment balances, omitting ST investments creates a multi-point S/C swing.
 
 Use web sources if Alpha Vantage doesn't have enough history. True multi-year adjusted S/C history is unavailable given the 5-year Alpha Vantage data window and typical amortization lives, so the raw trend table is the best directional signal for whether capital efficiency is improving or deteriorating.
 
