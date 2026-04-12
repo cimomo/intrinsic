@@ -84,7 +84,7 @@ You could. But:
 - **Hallucinated financials** — plain-session analysis invents numbers. Intrinsic fetches real data from Alpha Vantage.
 - **No structure** — Claude skips steps when it's in a hurry. The pipeline can't cut corners.
 - **No persistence** — assumptions vanish when the session ends. Intrinsic saves them per stock, across runs.
-- **No self-challenge** — Claude won't push back on its own conclusions. Intrinsic checks your assumptions for coherence, shows you which ones matter most, and asks what would have to go wrong for you to lose money.
+- **No self-challenge** — Claude won't push back on its own conclusions. Intrinsic checks your assumptions for coherence, shows you which ones matter most, and identifies what would flip the verdict.
 
 ## Running steps individually
 
