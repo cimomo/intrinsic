@@ -523,22 +523,7 @@ Challenge the user when the highest-impact assumption is vulnerable:
 - If the highest-impact assumption is a manual override: "[Assumption] is the most sensitive assumption AND a manual override — your specific bet has the biggest impact on fair value. A ±20% swing means ±$XX. Are you comfortable with this exposure? [y/N]"
 - Both conditions can apply simultaneously — flag both.
 
-### 9. Pre-Mortem — What Could Go Wrong?
-
-Final gut check. One paragraph of reasoning:
-
-"Assume this stock drops 40% in the next 12 months. What went wrong?"
-
-Consider:
-- Which assumption was most likely wrong, and in which direction?
-- What event or development would break the thesis?
-- Is there a risk not captured in the Key Risks section that could cause this?
-
-Display the pre-mortem reasoning. This is informational — it doesn't change assumptions, but it provides important context that gets saved with the calibration output and informs the final report.
-
-If the reasoning changes the user's view on any assumption, they can re-run `/calibrate` to revise.
-
-### 10. Save Updated Assumptions
+### 9. Save Updated Assumptions
 - Save via `StockManager.save_assumptions(symbol, assumptions, manual_overrides=overrides)`
 - Track `_manual_overrides` throughout:
   - Start with the loaded list from `StockManager.load_manual_overrides(symbol)`
