@@ -788,7 +788,7 @@ class TestReverseDCF:
         """reverse_dcf must raise ValueError if the forward DCF can't run at all,
         rather than silently collapsing the binary search to a bound.
 
-        Regression test: previously, passing raw cached financial_data (instead of
+        Regression test: previously, passing raw cached data (instead of
         the dcf_inputs dict) caused every iteration to raise internally, the
         binary search collapsed to the low bound (-10% growth), and the function
         returned a bogus {'implied_value': -0.0999, 'fair_value': 0.0} result."""
@@ -982,7 +982,7 @@ class TestEquityBridge:
 class TestDcfMarginRawOrUserFallback:
     """R&D informational reframe: dcf.py margin resolution is user-or-raw.
 
-    adjusted_operating_margin in financial_data must be ignored by the DCF —
+    adjusted_operating_margin in dcf_inputs must be ignored by the DCF —
     it is purely a display field now.
     """
 
@@ -1043,7 +1043,7 @@ class TestDcfMarginRawOrUserFallback:
 class TestDcfSalesToCapitalRawOrUserFallback:
     """R&D informational reframe: dcf.py S/C resolution is user-or-raw.
 
-    adjusted_sales_to_capital in financial_data must be ignored by the DCF —
+    adjusted_sales_to_capital in dcf_inputs must be ignored by the DCF —
     it is purely a display field now.
     """
 
