@@ -411,12 +411,12 @@ The core question: *How much of today's excess returns (ROIC above WACC) will pe
 |----------------|---------------|-----------|
 | Moat: None | = WACC | Competition fully erodes excess returns |
 | Moat: Narrow, Direction: Narrowing | = WACC | Advantages eroding, converge to no-moat |
-| Moat: Narrow, Direction: Stable | 1.1× WACC | Modest advantage persists but limited |
-| Moat: Wide, Direction: Narrowing | 1.1× WACC | Strong today but declining toward narrow |
-| Moat: Wide, Direction: Stable | 1.2× WACC | Durable competitive advantage |
-| Moat: Wide, Direction: Widening | 1.5× WACC | Truly exceptional, strengthening advantages |
+| Moat: Narrow, Direction: Stable | WACC + 1% | Modest advantage persists but limited |
+| Moat: Wide, Direction: Narrowing | WACC + 1% | Strong today but declining toward narrow |
+| Moat: Wide, Direction: Stable | WACC + 2% | Durable competitive advantage |
+| Moat: Wide, Direction: Widening | WACC + 5% | Truly exceptional, strengthening advantages |
 
-These are WACC multipliers, not interpolations from current ROIC. Current ROIC is often cyclically inflated and should not anchor perpetuity assumptions. Terminal ROIC reflects structural advantage that persists through cycles — for most companies, that is a modest premium above WACC at best.
+These are fixed spreads above WACC, not interpolations from current ROIC. The spread reflects moat strength independent of the cost of capital — a durable moat earns the same excess return regardless of whether WACC is 8% or 15%. Current ROIC is shown as context but should not anchor perpetuity assumptions.
 
 **Go deeper — reason about the specific source of advantage:**
 - **Network effects** (MSFT ecosystem, NVDA CUDA, platform businesses) → very durable, among the strongest moats. ROIC decay is slow.
@@ -433,13 +433,13 @@ Terminal ROIC:
   WACC (floor):           9.9%    ← no excess returns, competition wins
   Current ROIC:          29.1%    ← today's returns (context, not an anchor)
   Implied ROIC (model):  25.3%    ← what your margin + S/C assumptions imply
-  Framework:             11.9%    ← 1.2× WACC (Wide/Stable)
+  Framework:             11.9%    ← WACC + 2% (Wide/Stable)
     Research: Wide moat (Stable) — Azure/M365 ecosystem creates deep switching costs
     and network effects. Enterprise lock-in is multi-year.
     Impact: Terminal ROIC of 11.9% vs WACC-default changes fair value by +$XX
 ```
 
-**Guard:** Cap terminal ROIC at 1.5× WACC. Even the strongest moats erode over decades. If the user picks a custom value above 1.5× WACC, note: "Above 1.5× WACC — requires explicit justification for why excess returns of this magnitude persist in perpetuity."
+**Guard:** Cap terminal ROIC at WACC + 5%. Even the strongest moats erode over decades. If the user picks a custom value above WACC + 5%, note: "Spread above +5% — requires explicit justification for why excess returns of this magnitude persist in perpetuity."
 
 Present the anchors, the framework recommendation, and the specific reasoning. Ask: "framework (X%), WACC default (Y%), or custom?"
 
