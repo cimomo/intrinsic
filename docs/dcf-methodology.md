@@ -276,7 +276,7 @@ Controls how much reinvestment is needed to sustain terminal growth.
 
 **When ROIC > WACC:** Growth creates value. The higher the ROIC, the less reinvestment is needed per unit of growth, and the more FCF is available. This is the premium for competitive advantage.
 
-The calibration process recommends a terminal ROIC based on moat strength: companies with no moat get WACC (no excess returns), wide-moat companies with widening advantages can retain up to their current ROIC, and everything in between gets a partial spread. The override is capped at 2× WACC — even for the widest moats, competition and disruption erode returns over decades.
+The calibration process recommends a terminal ROIC based on moat strength as a WACC multiplier: no moat = WACC, durable moat = 1.2× WACC, truly exceptional = 1.5× WACC. Current ROIC is shown as context but does not anchor the recommendation — it is often cyclically inflated and should not drive perpetuity assumptions. The framework cap is 1.5× WACC.
 
 **Guards:** Terminal ROIC must be positive and at least equal to the terminal growth rate. Otherwise the company would need to invest more than it earns just to sustain terminal growth — a mathematical impossibility in perpetuity.
 
@@ -354,7 +354,7 @@ Negative growth rates are allowed in the sensitivity table.
 | Beta | From financial data | Regression beta; bottom-up preferred |
 | Cost of debt | 5.0% | Pre-tax; calibrate derives from credit rating + Damodaran spread |
 | Sales-to-capital ratio | Computed from financials | Revenue / Invested Capital |
-| Terminal ROIC | WACC | No excess returns in perpetuity; override for wide moats |
+| Terminal ROIC | WACC | No excess returns in perpetuity; wide moats up to 1.5× WACC |
 | Cost of capital | None | Compute WACC from components; set to override with manual hurdle rate |
 
 All defaults except terminal growth rate (hard cap) and marginal tax rate (statutory) should be calibrated for the specific company before running a valuation.

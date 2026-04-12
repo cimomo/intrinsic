@@ -411,12 +411,14 @@ The core question: *How much of today's excess returns (ROIC above WACC) will pe
 |----------------|---------------|-----------|
 | Moat: None | = WACC | Competition fully erodes excess returns |
 | Moat: Narrow, Direction: Narrowing | = WACC | Advantages eroding, converge to no-moat |
-| Moat: Narrow, Direction: Stable | Midpoint of WACC and current ROIC | Some advantages persist but partially erode |
-| Moat: Wide, Direction: Narrowing | Midpoint of WACC and current ROIC | Strong today but declining |
-| Moat: Wide, Direction: Stable | 75% of the way from WACC to current ROIC | Strong and durable |
-| Moat: Wide, Direction: Widening | Current ROIC (or implied ROIC) | Advantages strengthening |
+| Moat: Narrow, Direction: Stable | 1.1× WACC | Modest advantage persists but limited |
+| Moat: Wide, Direction: Narrowing | 1.1× WACC | Strong today but declining toward narrow |
+| Moat: Wide, Direction: Stable | 1.2× WACC | Durable competitive advantage |
+| Moat: Wide, Direction: Widening | 1.5× WACC | Truly exceptional, strengthening advantages |
 
-This table is a starting point. **Go deeper — reason about the specific source of advantage:**
+These are WACC multipliers, not interpolations from current ROIC. Current ROIC is often cyclically inflated and should not anchor perpetuity assumptions. Terminal ROIC reflects structural advantage that persists through cycles — for most companies, that is a modest premium above WACC at best.
+
+**Go deeper — reason about the specific source of advantage:**
 - **Network effects** (MSFT ecosystem, NVDA CUDA, platform businesses) → very durable, among the strongest moats. ROIC decay is slow.
 - **Switching costs** (enterprise software, embedded systems) → durable, but can erode with generational technology shifts.
 - **Intangible assets** (brand, patents, regulatory licenses) → patents expire, brands fade, but regulatory moats persist. Duration matters.
@@ -429,18 +431,17 @@ For each source of advantage identified in the research, ask: *What would have t
 ```
 Terminal ROIC:
   WACC (floor):           9.9%    ← no excess returns, competition wins
-  Current ROIC:          29.1%    ← today's returns
+  Current ROIC:          29.1%    ← today's returns (context, not an anchor)
   Implied ROIC (model):  25.3%    ← what your margin + S/C assumptions imply
-  Recommended:           22.0%    ← 75% toward current ROIC
+  Framework:             11.9%    ← 1.2× WACC (Wide/Stable)
     Research: Wide moat (Stable) — Azure/M365 ecosystem creates deep switching costs
-    and network effects. Enterprise lock-in is multi-year. No plausible path to full
-    moat erosion within 10-year horizon.
-    Impact: Terminal ROIC of 22% vs WACC-default changes fair value by +$64
+    and network effects. Enterprise lock-in is multi-year.
+    Impact: Terminal ROIC of 11.9% vs WACC-default changes fair value by +$XX
 ```
 
-**Guard:** In all cases, cap terminal ROIC at 2× WACC. Even the strongest moats should not imply returns exceeding double the cost of capital in perpetuity. If the table or current ROIC suggests a value above 2× WACC, use 2× WACC and note the cap.
+**Guard:** Cap terminal ROIC at 1.5× WACC. Even the strongest moats erode over decades. If the user picks a custom value above 1.5× WACC, note: "Above 1.5× WACC — requires explicit justification for why excess returns of this magnitude persist in perpetuity."
 
-Present the anchors, the table-based recommendation, and the specific reasoning. Ask: "recommended (22%), WACC default (9.9%), or custom?"
+Present the anchors, the framework recommendation, and the specific reasoning. Ask: "framework (X%), WACC default (Y%), or custom?"
 
 ### 7. Coherence Check
 
