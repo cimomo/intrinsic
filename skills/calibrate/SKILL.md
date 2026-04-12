@@ -289,9 +289,12 @@ Use `DCFModel.reverse_dcf(dcf_inputs, shares_outstanding, current_price)` to sol
 Display:
 ```
 Market-implied revenue growth: ~X%
-  (At current price of $XXX, with WACC X.X% and current margin assumptions)
+  (At current price of $XXX, holding constant: margin X.X%, S/C X.Xx,
+   WACC X.X%, terminal ROIC X.X%)
   Your data-driven estimate will be compared against this.
 ```
+
+**Terminal ROIC sensitivity:** The implied growth rate changes significantly with terminal ROIC — for wide-moat companies, the gap between terminal ROIC = WACC (default) and terminal ROIC = WACC + 5% can swing the implied growth by 5+ percentage points. Label which terminal ROIC is being used so the user knows what the number means.
 
 This is context, not a recommendation. It tells you: "the market is pricing in X% growth — if your assumption differs, you should know why."
 

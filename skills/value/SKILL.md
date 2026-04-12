@@ -104,8 +104,8 @@ implied = model.reverse_dcf(dcf_inputs, shares, price)               # also dcf_
 
 ### 3. Reverse DCF Context
 - Run `DCFModel.reverse_dcf(dcf_inputs, shares_outstanding, current_price)` to get market-implied revenue growth rate
-- Display: "Market-implied revenue growth: ~X% (at $XXX, assuming Y% target margin, Z S/C ratio, W% WACC)"
-- Show which assumptions are held constant — the implied growth changes if you change margin or S/C
+- Display: "Market-implied revenue growth: ~X% (at $XXX, holding constant: margin Y%, S/C Z, WACC W%, terminal ROIC T%)"
+- Show which assumptions are held constant — the implied growth changes if you change margin, S/C, or terminal ROIC
 - This gives context for interpreting the DCF result — if your fair value differs from current price, the user can see exactly which growth assumption drives the gap
 
 ### 4. Perform DCF Valuation
