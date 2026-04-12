@@ -257,11 +257,19 @@ WACC: X.X%
   Weights: XX% equity / XX% debt
 ```
 
-**Hurdle rate override:** After showing the computed WACC, offer the option to override it. This is useful when WACC components have known limitations (e.g., regression beta is noisy, spread table may lag market conditions).
+**Hurdle rate override:** The hurdle rate is one of the most impactful inputs in the model — overriding computed WACC can swing fair value by $50+/share. This MUST be an `AskUserQuestion`, not a skippable prose prompt.
 
-"WACC is X.X%. Override with a manual hurdle rate? [Enter to keep computed]"
+**If a cost_of_capital override is already set**, use `AskUserQuestion` with:
+- Keep current override (X.X%)
+- Use computed WACC (Y.Y%)
+- Custom
 
-If a cost_of_capital override is already set: "Cost of capital: X.X% (manual hurdle rate). Remove override and use computed WACC (Y.Y%)? [Enter to keep]"
+**If no override is set**, use `AskUserQuestion` with:
+- Keep computed WACC (X.X%)
+- Round to nearest integer (X%)
+- Custom
+
+Store the answer to `assumptions.cost_of_capital`. If the user picks computed WACC, set `cost_of_capital` to `None` (use WACC components) and remove from `_manual_overrides`. If the user picks a custom value or keeps an override, add to `_manual_overrides`.
 
 If a hurdle rate is set (existing or new), display:
 ```
