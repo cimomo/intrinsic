@@ -60,11 +60,12 @@ If no sources are specified, or `all` is given, fetch all 6 sources.
 
 ### 3. Save Cached Data
 - Load existing cache via `StockManager.load_financial_data()` (if any)
-- If existing cache found: merge new data into it (only overwrite the **successfully fetched** sources, preserve the rest)
+- **Important:** `load_financial_data()` returns the full envelope `{"symbol", "fetched_at", "sources", "data": {...}}`. Merge into `existing["data"]`, not `existing` itself — `save_financial_data` wraps its input into a new envelope, so passing the full envelope creates double-wrapping (`data.data.overview`).
+- If existing cache found: merge new sources into `existing["data"]` (only overwrite the **successfully fetched** sources, preserve the rest)
 - If no existing cache: start with an empty dict (missing sources will not be present)
 - Build a `source_info` dict tracking each of the 6 sources with: `status` ("ok" or "missing"), `provider` ("Alpha Vantage" or null), `fetched_date`, `latest_period`, and `reason` (for failures)
 - For sources not fetched in this run, preserve their existing `source_info` from the cache
-- Save merged result via `StockManager.save_financial_data(symbol, data, source_info=source_info)`
+- Save merged result via `StockManager.save_financial_data(symbol, data, source_info=source_info)` — `data` here is the merged sources dict, NOT the full envelope
 - **Do not save failed/empty results** — only save sources that returned valid data
 
 **Key mapping** (source name → cache key):

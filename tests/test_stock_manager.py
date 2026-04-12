@@ -217,6 +217,30 @@ class TestFinancialData:
         assert "AAPL" in str(path)
 
 
+    def test_rejects_double_wrapped_envelope(self, manager):
+        """save_financial_data must raise if passed the full envelope from
+        load_financial_data instead of just the inner data dict. This prevents
+        silent double-wrapping where data.data.overview replaces data.overview."""
+        envelope = {
+            "symbol": "MSFT",
+            "fetched_at": "2026-01-01T00:00:00",
+            "data": self.SAMPLE_DATA,
+        }
+        with pytest.raises(ValueError, match="double-wrap"):
+            manager.save_financial_data("MSFT", envelope)
+
+    def test_accepts_valid_data_with_symbol_key(self, manager):
+        """A data dict that happens to have a 'symbol' key (e.g. from AV response)
+        but lacks the full envelope signature should be accepted."""
+        data_with_symbol = {
+            "symbol": "MSFT",
+            "overview": {"Name": "Microsoft"},
+        }
+        manager.save_financial_data("MSFT", data_with_symbol)
+        loaded = manager.load_financial_data("MSFT")
+        assert loaded["data"] == data_with_symbol
+
+
 class TestDataFreshness:
     """Tests for validate_data_freshness()"""
 

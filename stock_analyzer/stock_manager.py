@@ -352,6 +352,19 @@ class StockManager:
             Path to the saved file
         """
         symbol = symbol.upper()
+
+        # Detect double-wrapping: if data looks like a full envelope from
+        # load_financial_data() (has symbol + fetched_at + data keys), the
+        # caller forgot to extract data["data"] before saving.
+        envelope_keys = {"symbol", "fetched_at", "data"}
+        if envelope_keys.issubset(data.keys()) and isinstance(data.get("data"), dict):
+            raise ValueError(
+                "save_financial_data received a double-wrapped envelope "
+                "(has 'symbol', 'fetched_at', and 'data' keys). "
+                "Pass existing['data'] (the inner sources dict), not the "
+                "full envelope from load_financial_data()."
+            )
+
         now = datetime.now(timezone.utc)
         payload = {
             "symbol": symbol,
