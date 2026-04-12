@@ -389,7 +389,9 @@ class StockManager:
             symbol: Stock ticker symbol
 
         Returns:
-            Dict with symbol, fetched_at, fetched_at_unix, data keys, or None if missing/corrupt
+            Dict with symbol, fetched_at, fetched_at_unix, data keys, or None if missing/corrupt.
+            Note: this is the full envelope. To update and re-save, pass
+            result["data"] to save_financial_data(), not the full result.
         """
         file_path = self.get_financial_data_file(symbol)
 
