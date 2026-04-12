@@ -11,6 +11,39 @@ When running Python code, set `PYTHONPATH` so `stock_analyzer` is importable:
 PYTHONPATH="${CLAUDE_PLUGIN_ROOT:-.}" python3 -c "from stock_analyzer import ..."
 ```
 
+## Canonical Run (reference)
+
+Minimal, copy-pasteable call chain that bypasses the three common pitfalls (staticmethod on `FinancialMetrics`, `dcf_inputs` vs raw cached shape, zero-arg `get_summary()`):
+
+```python
+from stock_analyzer import StockManager, FinancialMetrics, DCFModel
+
+manager = StockManager()
+cached = manager.load_financial_data("$ARGUMENTS")          # raw cached JSON payload
+assumptions, _ = manager.get_or_create_assumptions("$ARGUMENTS")
+
+dcf_inputs = FinancialMetrics.calculate_dcf_inputs(         # staticmethod, NO instance
+    income_statement=cached["data"]["income_statement_annual"]["reports"],
+    balance_sheet=cached["data"]["balance_sheet"]["reports"],
+    cash_flow=cached["data"]["cash_flow"]["reports"],
+    overview=cached["data"]["overview"],
+    income_annual=cached["data"]["income_statement_annual"]["reports"],  # enables R&D-adjusted metrics
+)
+
+shares = float(cached["data"]["overview"]["SharesOutstanding"])
+price  = float(cached["data"]["quote"]["Global Quote"]["05. price"])
+
+model = DCFModel(assumptions)
+model.calculate_fair_value(dcf_inputs, shares, price, verbose=True)  # dcf_inputs, NOT cached
+print(model.get_summary())                                           # zero args
+implied = model.reverse_dcf(dcf_inputs, shares, price)               # also dcf_inputs
+```
+
+**Gotchas:**
+- `FinancialMetrics.calculate_dcf_inputs(...)` is a staticmethod. The class has no useful instance — do NOT write `FinancialMetrics(data).calculate_dcf_inputs(...)`.
+- `DCFModel.calculate_fair_value` and `DCFModel.reverse_dcf` both take the **`dcf_inputs` dict**, not the raw cached JSON. Passing raw cached data raises `ValueError: dcf_inputs missing required fields: revenue, operating_income, market_cap`.
+- `DCFModel.get_summary()` takes **zero args** — it reads from `self.results` set by the prior `calculate_fair_value()` call.
+
 ## Steps:
 
 ### 1. Initialize and Load Data

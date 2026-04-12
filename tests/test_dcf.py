@@ -25,7 +25,7 @@ def custom_assumptions():
 
 
 @pytest.fixture
-def sample_financial_data():
+def sample_dcf_inputs():
     return {
         'revenue': 400_000_000_000,
         'operating_income': 120_000_000_000,
@@ -562,65 +562,65 @@ class TestPresentValue:
 # --- Fair Value (Integration) ---
 
 class TestCalculateFairValue:
-    def test_returns_required_keys(self, sample_financial_data):
+    def test_returns_required_keys(self, sample_dcf_inputs):
         model = DCFModel()
-        results = model.calculate_fair_value(sample_financial_data, 10e9, 100.0)
+        results = model.calculate_fair_value(sample_dcf_inputs, 10e9, 100.0)
         for key in ['fair_value', 'current_price', 'upside_percent', 'wacc',
                      'enterprise_value', 'equity_value', 'terminal_value']:
             assert key in results
 
-    def test_fair_value_positive(self, sample_financial_data):
+    def test_fair_value_positive(self, sample_dcf_inputs):
         model = DCFModel()
-        results = model.calculate_fair_value(sample_financial_data, 10e9, 100.0)
+        results = model.calculate_fair_value(sample_dcf_inputs, 10e9, 100.0)
         assert results['fair_value'] > 0
 
-    def test_upside_calculation(self, sample_financial_data):
+    def test_upside_calculation(self, sample_dcf_inputs):
         model = DCFModel()
-        results = model.calculate_fair_value(sample_financial_data, 10e9, 100.0)
+        results = model.calculate_fair_value(sample_dcf_inputs, 10e9, 100.0)
         expected_upside = (results['fair_value'] - 100.0) / 100.0 * 100
         assert results['upside_percent'] == pytest.approx(expected_upside)
 
-    def test_verbose_includes_projections(self, sample_financial_data):
+    def test_verbose_includes_projections(self, sample_dcf_inputs):
         model = DCFModel()
-        results = model.calculate_fair_value(sample_financial_data, 10e9, 100.0, verbose=True)
+        results = model.calculate_fair_value(sample_dcf_inputs, 10e9, 100.0, verbose=True)
         assert 'fcf_projections' in results
         assert 'margin_projections' in results
         assert 'base_revenue' in results
 
-    def test_non_verbose_excludes_projections(self, sample_financial_data):
+    def test_non_verbose_excludes_projections(self, sample_dcf_inputs):
         model = DCFModel()
-        results = model.calculate_fair_value(sample_financial_data, 10e9, 100.0, verbose=False)
+        results = model.calculate_fair_value(sample_dcf_inputs, 10e9, 100.0, verbose=False)
         assert 'fcf_projections' not in results
 
-    def test_enterprise_value_equals_pv_sum(self, sample_financial_data):
+    def test_enterprise_value_equals_pv_sum(self, sample_dcf_inputs):
         model = DCFModel()
-        r = model.calculate_fair_value(sample_financial_data, 10e9, 100.0)
+        r = model.calculate_fair_value(sample_dcf_inputs, 10e9, 100.0)
         assert r['enterprise_value'] == pytest.approx(r['pv_fcf'] + r['pv_terminal_value'])
 
-    def test_custom_sales_to_capital(self, sample_financial_data):
+    def test_custom_sales_to_capital(self, sample_dcf_inputs):
         assumptions = DCFAssumptions(sales_to_capital_ratio=3.0)
         model = DCFModel(assumptions)
-        r = model.calculate_fair_value(sample_financial_data, 10e9, 100.0)
+        r = model.calculate_fair_value(sample_dcf_inputs, 10e9, 100.0)
         assert r['sales_to_capital'] == 3.0
 
-    def test_auto_sales_to_capital(self, sample_financial_data):
+    def test_auto_sales_to_capital(self, sample_dcf_inputs):
         """When not set, sales-to-capital is calculated from balance sheet"""
         model = DCFModel()
-        r = model.calculate_fair_value(sample_financial_data, 10e9, 100.0)
-        equity = sample_financial_data['equity']
-        debt = sample_financial_data['total_debt']
-        cash = sample_financial_data['cash']
-        sti = sample_financial_data.get('short_term_investments', 0)
-        lti = sample_financial_data.get('long_term_investments', 0)
-        expected = sample_financial_data['revenue'] / (equity + debt - cash - sti - lti)
+        r = model.calculate_fair_value(sample_dcf_inputs, 10e9, 100.0)
+        equity = sample_dcf_inputs['equity']
+        debt = sample_dcf_inputs['total_debt']
+        cash = sample_dcf_inputs['cash']
+        sti = sample_dcf_inputs.get('short_term_investments', 0)
+        lti = sample_dcf_inputs.get('long_term_investments', 0)
+        expected = sample_dcf_inputs['revenue'] / (equity + debt - cash - sti - lti)
         assert r['sales_to_capital'] == pytest.approx(expected)
 
-    def test_explicit_terminal_roic(self, sample_financial_data):
+    def test_explicit_terminal_roic(self, sample_dcf_inputs):
         """Explicit terminal_roic flows through to results and increases fair value"""
         model_default = DCFModel()
         model_moat = DCFModel(DCFAssumptions(terminal_roic=0.20))
-        r_default = model_default.calculate_fair_value(sample_financial_data, 10e9, 100.0)
-        r_moat = model_moat.calculate_fair_value(sample_financial_data, 10e9, 100.0)
+        r_default = model_default.calculate_fair_value(sample_dcf_inputs, 10e9, 100.0)
+        r_moat = model_moat.calculate_fair_value(sample_dcf_inputs, 10e9, 100.0)
         # Results include terminal details
         assert 'terminal_roic' in r_default
         assert 'terminal_reinvestment_rate' in r_default
@@ -630,7 +630,7 @@ class TestCalculateFairValue:
         # Higher ROIC → less reinvestment → higher terminal FCF → higher fair value
         assert r_moat['fair_value'] > r_default['fair_value']
 
-    def test_recalc_consistent_with_main(self, sample_financial_data):
+    def test_recalc_consistent_with_main(self, sample_dcf_inputs):
         """_recalc_fair_value produces same result as calculate_fair_value for base case"""
         assumptions = DCFAssumptions(
             revenue_growth_rate=0.10,
@@ -639,7 +639,7 @@ class TestCalculateFairValue:
             terminal_roic=0.18,
         )
         model = DCFModel(assumptions)
-        r = model.calculate_fair_value(sample_financial_data, 10e9, 100.0, verbose=True)
+        r = model.calculate_fair_value(sample_dcf_inputs, 10e9, 100.0, verbose=True)
         # Compute net_debt from bridge components
         cash_and_inv = r['cash'] + r.get('short_term_investments', 0) + r.get('long_term_investments', 0)
         net_debt = r['total_debt'] - cash_and_inv
@@ -656,7 +656,7 @@ class TestCalculateFairValue:
         )
         assert recalc_fv == pytest.approx(r['fair_value'], rel=1e-6)
 
-    def test_recalc_consistent_with_year_varying_wacc(self, sample_financial_data):
+    def test_recalc_consistent_with_year_varying_wacc(self, sample_dcf_inputs):
         """_recalc_fair_value matches calculate_fair_value when effective_tax_rate is set"""
         assumptions = DCFAssumptions(
             revenue_growth_rate=0.10,
@@ -667,7 +667,7 @@ class TestCalculateFairValue:
             effective_tax_rate=0.05,
         )
         model = DCFModel(assumptions)
-        r = model.calculate_fair_value(sample_financial_data, 10e9, 100.0, verbose=True)
+        r = model.calculate_fair_value(sample_dcf_inputs, 10e9, 100.0, verbose=True)
         # wacc_per_year should vary (effective != marginal)
         assert r['wacc_per_year'][0] != pytest.approx(r['wacc_per_year'][-1])
         # Compute net_debt from bridge components
@@ -736,51 +736,51 @@ class TestValidation:
 # --- Reverse DCF ---
 
 class TestReverseDCF:
-    def test_implied_growth_near_target(self, sample_financial_data):
+    def test_implied_growth_near_target(self, sample_dcf_inputs):
         """reverse_dcf should find a growth rate that produces fair_value ≈ target_price"""
         model = DCFModel(DCFAssumptions())
         # First get fair value at default 10% growth
-        result = model.calculate_fair_value(sample_financial_data, 10e9, 100.0, verbose=False)
+        result = model.calculate_fair_value(sample_dcf_inputs, 10e9, 100.0, verbose=False)
         target_price = result['fair_value']
 
         # Now solve: what growth rate produces this fair value?
-        reverse = model.reverse_dcf(sample_financial_data, 10e9, target_price)
+        reverse = model.reverse_dcf(sample_dcf_inputs, 10e9, target_price)
         assert reverse is not None
         assert abs(reverse['implied_value'] - 0.10) < 0.005  # should be close to 10%
 
-    def test_higher_price_implies_higher_growth(self, sample_financial_data):
+    def test_higher_price_implies_higher_growth(self, sample_dcf_inputs):
         """A higher target price should imply a higher growth rate"""
         model = DCFModel(DCFAssumptions())
-        low_result = model.reverse_dcf(sample_financial_data, 10e9, 50.0)
-        high_result = model.reverse_dcf(sample_financial_data, 10e9, 200.0)
+        low_result = model.reverse_dcf(sample_dcf_inputs, 10e9, 50.0)
+        high_result = model.reverse_dcf(sample_dcf_inputs, 10e9, 200.0)
         assert low_result is not None
         assert high_result is not None
         assert high_result['implied_value'] > low_result['implied_value']
 
-    def test_does_not_mutate_assumptions(self, sample_financial_data):
+    def test_does_not_mutate_assumptions(self, sample_dcf_inputs):
         """reverse_dcf should restore the original growth rate after solving"""
         assumptions = DCFAssumptions(revenue_growth_rate=0.15)
         model = DCFModel(assumptions)
-        model.reverse_dcf(sample_financial_data, 10e9, 100.0)
+        model.reverse_dcf(sample_dcf_inputs, 10e9, 100.0)
         assert model.assumptions.revenue_growth_rate == 0.15
 
-    def test_unsupported_solve_for_raises(self, sample_financial_data):
+    def test_unsupported_solve_for_raises(self, sample_dcf_inputs):
         model = DCFModel()
         with pytest.raises(ValueError, match="currently only supports"):
-            model.reverse_dcf(sample_financial_data, 10e9, 100.0, solve_for='beta')
+            model.reverse_dcf(sample_dcf_inputs, 10e9, 100.0, solve_for='beta')
 
-    def test_returns_wacc(self, sample_financial_data):
+    def test_returns_wacc(self, sample_dcf_inputs):
         model = DCFModel(DCFAssumptions())
-        result = model.reverse_dcf(sample_financial_data, 10e9, 100.0)
+        result = model.reverse_dcf(sample_dcf_inputs, 10e9, 100.0)
         assert result is not None
         assert 'wacc' in result
         assert result['wacc'] > 0
 
-    def test_can_find_negative_growth(self, sample_financial_data):
+    def test_can_find_negative_growth(self, sample_dcf_inputs):
         """Reverse DCF should find negative growth for very low target prices"""
         model = DCFModel(DCFAssumptions())
         # A very low target price should imply negative growth
-        result = model.reverse_dcf(sample_financial_data, 10e9, 5.0)
+        result = model.reverse_dcf(sample_dcf_inputs, 10e9, 5.0)
         assert result is not None
         assert result['implied_value'] < 0
 
@@ -823,11 +823,11 @@ class TestReverseDCF:
 # --- Sensitivity Table ---
 
 class TestSensitivityTable:
-    def test_negative_growth_in_table(self, sample_financial_data):
+    def test_negative_growth_in_table(self, sample_dcf_inputs):
         """Sensitivity table should include negative growth when base is low"""
         assumptions = DCFAssumptions(revenue_growth_rate=0.02, sales_to_capital_ratio=2.0)
         model = DCFModel(assumptions)
-        model.calculate_fair_value(sample_financial_data, 10e9, 100.0, verbose=True)
+        model.calculate_fair_value(sample_dcf_inputs, 10e9, 100.0, verbose=True)
         summary = model.get_summary()
         # Base growth is 2%, so -2% step should appear
         assert "-2.0%" in summary or "-2.0%*" in summary
@@ -840,9 +840,9 @@ class TestGetSummary:
         model = DCFModel()
         assert "No valuation calculated" in model.get_summary()
 
-    def test_summary_contains_key_sections(self, sample_financial_data):
+    def test_summary_contains_key_sections(self, sample_dcf_inputs):
         model = DCFModel()
-        model.calculate_fair_value(sample_financial_data, 10e9, 100.0, verbose=True)
+        model.calculate_fair_value(sample_dcf_inputs, 10e9, 100.0, verbose=True)
         summary = model.get_summary()
         assert "MODEL ASSUMPTIONS" in summary
         assert "YEAR-BY-YEAR" in summary
@@ -851,18 +851,18 @@ class TestGetSummary:
         assert "SENSITIVITY ANALYSIS" in summary
         assert "Assessment:" in summary
 
-    def test_summary_shows_margin_convergence(self, sample_financial_data):
+    def test_summary_shows_margin_convergence(self, sample_dcf_inputs):
         assumptions = DCFAssumptions(target_operating_margin=0.40)
         model = DCFModel(assumptions)
-        model.calculate_fair_value(sample_financial_data, 10e9, 100.0, verbose=True)
+        model.calculate_fair_value(sample_dcf_inputs, 10e9, 100.0, verbose=True)
         summary = model.get_summary()
         assert "Target Op. Margin" in summary
         assert "Margin" in summary  # column header
 
-    def test_assessment_bands(self, sample_financial_data):
+    def test_assessment_bands(self, sample_dcf_inputs):
         """Verify different upside percentages produce correct assessments"""
         model = DCFModel()
-        model.calculate_fair_value(sample_financial_data, 10e9, 100.0, verbose=True)
+        model.calculate_fair_value(sample_dcf_inputs, 10e9, 100.0, verbose=True)
         # Manually override upside to test bands
         model.results['upside_percent'] = 25
         assert "Significantly Undervalued" in model.get_summary()
@@ -883,13 +883,13 @@ class TestGetSummary:
 # --- Equity Bridge ---
 
 class TestEquityBridge:
-    def test_investments_increase_fair_value(self, sample_financial_data):
+    def test_investments_increase_fair_value(self, sample_dcf_inputs):
         """Short-term and long-term investments should increase equity value"""
         # Pin S/C ratio to isolate the bridge effect from the invested capital effect
         model = DCFModel(DCFAssumptions(sales_to_capital_ratio=2.0))
-        r_no_inv = model.calculate_fair_value(sample_financial_data, 10e9, 100.0)
+        r_no_inv = model.calculate_fair_value(sample_dcf_inputs, 10e9, 100.0)
 
-        data_with_inv = {**sample_financial_data, 'short_term_investments': 50e9, 'long_term_investments': 15e9}
+        data_with_inv = {**sample_dcf_inputs, 'short_term_investments': 50e9, 'long_term_investments': 15e9}
         model2 = DCFModel(DCFAssumptions(sales_to_capital_ratio=2.0))
         r_with_inv = model2.calculate_fair_value(data_with_inv, 10e9, 100.0)
 
@@ -928,9 +928,9 @@ class TestEquityBridge:
         assert r['fair_value'] > 0
         assert r['equity_value'] == pytest.approx(r['enterprise_value'] + 10e9 - 50e9)
 
-    def test_verbose_results_include_bridge_components(self, sample_financial_data):
+    def test_verbose_results_include_bridge_components(self, sample_dcf_inputs):
         """Verbose results should include all bridge components"""
-        data = {**sample_financial_data, 'short_term_investments': 50e9, 'long_term_investments': 15e9}
+        data = {**sample_dcf_inputs, 'short_term_investments': 50e9, 'long_term_investments': 15e9}
         model = DCFModel()
         r = model.calculate_fair_value(data, 10e9, 100.0, verbose=True)
         assert r['cash'] == 60e9
@@ -938,9 +938,9 @@ class TestEquityBridge:
         assert r['long_term_investments'] == 15e9
         assert r['total_debt'] == 100e9
 
-    def test_summary_shows_equity_bridge(self, sample_financial_data):
+    def test_summary_shows_equity_bridge(self, sample_dcf_inputs):
         """Summary should display the equity bridge with line items"""
-        data = {**sample_financial_data, 'short_term_investments': 50e9, 'long_term_investments': 15e9}
+        data = {**sample_dcf_inputs, 'short_term_investments': 50e9, 'long_term_investments': 15e9}
         model = DCFModel()
         model.calculate_fair_value(data, 10e9, 100.0, verbose=True)
         summary = model.get_summary()
@@ -962,9 +962,9 @@ class TestEquityBridge:
         # Cash + investments - debt = 20B + 50B + 10B - 10B = 70B net cash
         assert r['equity_value'] > r['enterprise_value']
 
-    def test_sensitivity_table_uses_full_bridge(self, sample_financial_data):
+    def test_sensitivity_table_uses_full_bridge(self, sample_dcf_inputs):
         """Sensitivity table should account for investments in net debt"""
-        data = {**sample_financial_data, 'short_term_investments': 50e9, 'long_term_investments': 15e9}
+        data = {**sample_dcf_inputs, 'short_term_investments': 50e9, 'long_term_investments': 15e9}
         assumptions = DCFAssumptions(sales_to_capital_ratio=2.0)
         model = DCFModel(assumptions)
         r = model.calculate_fair_value(data, 10e9, 100.0, verbose=True)
@@ -987,7 +987,7 @@ class TestDcfMarginRawOrUserFallback:
     """
 
     @pytest.fixture
-    def financial_data_with_adjusted(self):
+    def dcf_inputs_with_adjusted(self):
         return {
             'revenue': 200_000_000_000,
             'operating_income': 80_000_000_000,   # raw margin = 40%
@@ -1002,7 +1002,7 @@ class TestDcfMarginRawOrUserFallback:
             'adjusted_sales_to_capital': 1.35,
         }
 
-    def test_dcf_uses_raw_margin_when_user_assumption_unset(self, financial_data_with_adjusted):
+    def test_dcf_uses_raw_margin_when_user_assumption_unset(self, dcf_inputs_with_adjusted):
         """When operating_margin is None, DCF uses raw operating_income/revenue, NOT adjusted_operating_margin."""
         assumptions = DCFAssumptions(
             revenue_growth_rate=0.10,
@@ -1013,7 +1013,7 @@ class TestDcfMarginRawOrUserFallback:
         )
         model = DCFModel(assumptions)
         result = model.calculate_fair_value(
-            financial_data_with_adjusted,
+            dcf_inputs_with_adjusted,
             shares_outstanding=1e10,
             current_price=100.0,
             verbose=True,
@@ -1021,7 +1021,7 @@ class TestDcfMarginRawOrUserFallback:
         # Raw is 80B / 200B = 0.40. Adjusted is 0.60. The DCF MUST pick raw.
         assert result['operating_margin'] == pytest.approx(0.40, rel=1e-9)
 
-    def test_dcf_uses_user_assumption_when_set(self, financial_data_with_adjusted):
+    def test_dcf_uses_user_assumption_when_set(self, dcf_inputs_with_adjusted):
         """User-set operating_margin wins over both raw and adjusted."""
         assumptions = DCFAssumptions(
             revenue_growth_rate=0.10,
@@ -1032,7 +1032,7 @@ class TestDcfMarginRawOrUserFallback:
         )
         model = DCFModel(assumptions)
         result = model.calculate_fair_value(
-            financial_data_with_adjusted,
+            dcf_inputs_with_adjusted,
             shares_outstanding=1e10,
             current_price=100.0,
             verbose=True,
@@ -1048,7 +1048,7 @@ class TestDcfSalesToCapitalRawOrUserFallback:
     """
 
     @pytest.fixture
-    def financial_data_with_adjusted(self):
+    def dcf_inputs_with_adjusted(self):
         return {
             'revenue': 200_000_000_000,
             'operating_income': 80_000_000_000,
@@ -1063,7 +1063,7 @@ class TestDcfSalesToCapitalRawOrUserFallback:
             'adjusted_sales_to_capital': 1.35,  # must NOT be used
         }
 
-    def test_dcf_uses_raw_sc_when_user_assumption_unset(self, financial_data_with_adjusted):
+    def test_dcf_uses_raw_sc_when_user_assumption_unset(self, dcf_inputs_with_adjusted):
         """When sales_to_capital_ratio is None, DCF uses raw Rev/IC, NOT adjusted_sales_to_capital.
 
         Raw IC = equity + total_debt - cash - sti - lti = 100B + 50B - 20B - 10B - 5B = 115B.
@@ -1078,7 +1078,7 @@ class TestDcfSalesToCapitalRawOrUserFallback:
         )
         model = DCFModel(assumptions)
         result = model.calculate_fair_value(
-            financial_data_with_adjusted,
+            dcf_inputs_with_adjusted,
             shares_outstanding=1e10,
             current_price=100.0,
             verbose=True,
@@ -1086,7 +1086,7 @@ class TestDcfSalesToCapitalRawOrUserFallback:
         expected_raw_sc = 200_000_000_000 / 115_000_000_000
         assert result['sales_to_capital'] == pytest.approx(expected_raw_sc, rel=1e-9)
 
-    def test_dcf_uses_user_sc_when_set(self, financial_data_with_adjusted):
+    def test_dcf_uses_user_sc_when_set(self, dcf_inputs_with_adjusted):
         """User-set sales_to_capital_ratio wins over both raw and adjusted."""
         assumptions = DCFAssumptions(
             revenue_growth_rate=0.10,
@@ -1097,7 +1097,7 @@ class TestDcfSalesToCapitalRawOrUserFallback:
         )
         model = DCFModel(assumptions)
         result = model.calculate_fair_value(
-            financial_data_with_adjusted,
+            dcf_inputs_with_adjusted,
             shares_outstanding=1e10,
             current_price=100.0,
             verbose=True,

@@ -346,7 +346,7 @@ class DCFModel:
 
     def calculate_fair_value(
         self,
-        financial_data: Dict,
+        dcf_inputs: Dict,
         shares_outstanding: float,
         current_price: float,
         verbose: bool = True
@@ -355,7 +355,7 @@ class DCFModel:
         Calculate fair value per share using DCF analysis
 
         Args:
-            financial_data: Dictionary containing:
+            dcf_inputs: Dictionary containing:
                 - revenue: Most recent annual revenue
                 - operating_income: Operating income
                 - total_debt: Total debt
@@ -381,9 +381,9 @@ class DCFModel:
         """
         # Validate required fields
         required_fields = ['revenue', 'operating_income', 'market_cap']
-        missing = [f for f in required_fields if f not in financial_data or financial_data[f] is None]
+        missing = [f for f in required_fields if f not in dcf_inputs or dcf_inputs[f] is None]
         if missing:
-            raise ValueError(f"financial_data missing required fields: {', '.join(missing)}")
+            raise ValueError(f"dcf_inputs missing required fields: {', '.join(missing)}")
 
         if shares_outstanding is None or shares_outstanding <= 0:
             raise ValueError(f"shares_outstanding must be positive, got {shares_outstanding}")
@@ -392,11 +392,11 @@ class DCFModel:
             raise ValueError(f"current_price must be positive, got {current_price}")
 
         # Extract financial data
-        revenue = financial_data['revenue']
-        operating_income = financial_data['operating_income']
-        total_debt = financial_data.get('total_debt', 0)
-        market_cap = financial_data['market_cap']
-        beta = self.assumptions.beta if self.assumptions.beta is not None else financial_data.get('beta', 1.0)
+        revenue = dcf_inputs['revenue']
+        operating_income = dcf_inputs['operating_income']
+        total_debt = dcf_inputs.get('total_debt', 0)
+        market_cap = dcf_inputs['market_cap']
+        beta = self.assumptions.beta if self.assumptions.beta is not None else dcf_inputs.get('beta', 1.0)
 
         if revenue <= 0:
             raise ValueError(f"revenue must be positive, got {revenue}")
@@ -405,7 +405,7 @@ class DCFModel:
 
         # Calculate margins and ratios.
         # R&D informational reframe: user assumption or raw fallback only.
-        # adjusted_operating_margin (when present in financial_data) is a
+        # adjusted_operating_margin (when present in dcf_inputs) is a
         # display field consumed by calibrate/value skills, not the DCF.
         if self.assumptions.operating_margin is not None:
             operating_margin = self.assumptions.operating_margin
@@ -418,16 +418,16 @@ class DCFModel:
         # Sales-to-Capital = Revenue / Invested Capital
         # Where Invested Capital = Equity + Debt - Cash - Non-operating Investments.
         # R&D informational reframe: user assumption or raw fallback only.
-        # adjusted_sales_to_capital (when present in financial_data) is a
+        # adjusted_sales_to_capital (when present in dcf_inputs) is a
         # display field consumed by calibrate/value skills, not the DCF.
         if self.assumptions.sales_to_capital_ratio is not None:
             sales_to_capital = self.assumptions.sales_to_capital_ratio
         else:
             # Calculate invested capital from balance sheet
-            equity = financial_data.get('equity', market_cap)  # Book value of equity
-            cash = financial_data.get('cash', 0)
-            sti = financial_data.get('short_term_investments', 0)
-            lti = financial_data.get('long_term_investments', 0)
+            equity = dcf_inputs.get('equity', market_cap)  # Book value of equity
+            cash = dcf_inputs.get('cash', 0)
+            sti = dcf_inputs.get('short_term_investments', 0)
+            lti = dcf_inputs.get('long_term_investments', 0)
             invested_capital = equity + total_debt - cash - sti - lti
 
             # Calculate sales-to-capital ratio
@@ -485,9 +485,9 @@ class DCFModel:
         enterprise_value = pv_fcf + pv_terminal_value
 
         # Equity bridge: Enterprise Value + Cash & Investments - Debt
-        cash = financial_data.get('cash', 0)
-        short_term_investments = financial_data.get('short_term_investments', 0)
-        long_term_investments = financial_data.get('long_term_investments', 0)
+        cash = dcf_inputs.get('cash', 0)
+        short_term_investments = dcf_inputs.get('short_term_investments', 0)
+        long_term_investments = dcf_inputs.get('long_term_investments', 0)
         cash_and_investments = cash + short_term_investments + long_term_investments
         equity_value = enterprise_value + cash_and_investments - total_debt
 
@@ -537,7 +537,7 @@ class DCFModel:
 
     def reverse_dcf(
         self,
-        financial_data: Dict,
+        dcf_inputs: Dict,
         shares_outstanding: float,
         target_price: float,
         solve_for: str = 'revenue_growth_rate',
@@ -551,7 +551,7 @@ class DCFModel:
         fair_value ≈ target_price.
 
         Args:
-            financial_data: Same as calculate_fair_value
+            dcf_inputs: Same as calculate_fair_value
             shares_outstanding: Number of shares outstanding
             target_price: The price to solve for (typically current market price)
             solve_for: Which assumption to solve for. Currently supports:
@@ -580,13 +580,13 @@ class DCFModel:
         # Re-raise with a hint so the caller can fix the input shape.
         self.assumptions.revenue_growth_rate = 0.10
         try:
-            self.calculate_fair_value(financial_data, shares_outstanding, target_price, verbose=False)
+            self.calculate_fair_value(dcf_inputs, shares_outstanding, target_price, verbose=False)
         except ValueError as e:
             self.assumptions.revenue_growth_rate = original_growth
             raise ValueError(
                 f"reverse_dcf cannot solve: forward DCF fails on these inputs. "
                 f"Pass the dcf_inputs dict from FinancialMetrics.calculate_dcf_inputs(), "
-                f"not raw cached financial_data. Underlying error: {e}"
+                f"not raw cached data. Underlying error: {e}"
             ) from e
         finally:
             self.assumptions.revenue_growth_rate = original_growth
@@ -602,7 +602,7 @@ class DCFModel:
             self.assumptions.revenue_growth_rate = mid
 
             try:
-                result = self.calculate_fair_value(financial_data, shares_outstanding, target_price, verbose=False)
+                result = self.calculate_fair_value(dcf_inputs, shares_outstanding, target_price, verbose=False)
                 fair_value = result['fair_value']
             except (ValueError, ZeroDivisionError):
                 # This growth rate produces invalid results, narrow the range
