@@ -9,3 +9,4 @@ build/
 .claude/
 assets/internal/
 docs/internal/
+.playwright-mcp/
