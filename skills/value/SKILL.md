@@ -138,6 +138,7 @@ After the DCF calculation, verify the output is reasonable:
   ```
   - If growth is >80% of EV: "Most of the value comes from growth — every growth and reinvestment assumption is load-bearing."
   - If growth value is negative: "Growth destroys value at these assumptions (ROIC < WACC) — the company would be worth more with zero growth."
+- **Implied revenue scale:** Display: "Your assumptions imply $XXXB revenue by year 10 (up from $XXXB today, a X.Xx increase). Consider whether this is plausible relative to the total addressable market." Use `final_year_revenue` and `base_revenue` from the DCF results. If the increase is >5x, add: "A X.Xx increase requires $XXXB in cumulative new revenue — verify the TAM supports this."
 - **Terminal value concentration:** If PV of terminal value is >85% of enterprise value, flag: "Warning: terminal value represents X% of enterprise value — the valuation depends almost entirely on post-year-10 assumptions." This is common for growth companies but the user should know.
 - **Implausible fair value:** If fair value is negative or >5x current price, flag: "Warning: fair value of $X appears implausible — check input assumptions." Do not stop, but display prominently.
 - **Negative FCF in early years:** If projected FCF is negative in years 1-3, note: "Projected FCF is negative in early years due to high reinvestment — valuation depends on later-year cash flows." This is expected for high-growth, capital-heavy companies.

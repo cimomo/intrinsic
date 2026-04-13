@@ -518,6 +518,7 @@ class DCFModel:
         self.results.update({
             'operating_margin': operating_margin,
             'base_revenue': revenue,
+            'final_year_revenue': final_year_revenue,
         })
 
         if verbose:
@@ -532,7 +533,6 @@ class DCFModel:
                 'short_term_investments': short_term_investments,
                 'long_term_investments': long_term_investments,
                 'total_debt': total_debt,
-                'final_year_revenue': final_year_revenue,
             })
 
         return self.results
