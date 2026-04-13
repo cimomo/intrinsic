@@ -1103,3 +1103,99 @@ class TestDcfSalesToCapitalRawOrUserFallback:
             verbose=True,
         )
         assert result['sales_to_capital'] == pytest.approx(2.5, rel=1e-9)
+
+
+# --- Value Decomposition ---
+
+class TestValueDecomposition:
+    def test_basic_decomposition(self, custom_assumptions, sample_dcf_inputs):
+        """Assets-in-place = NOPAT/WACC; growth = EV - assets-in-place."""
+        model = DCFModel(custom_assumptions)
+        result = model.calculate_fair_value(
+            sample_dcf_inputs,
+            shares_outstanding=10e9,
+            current_price=250.0,
+            verbose=True,
+        )
+        decomp = model.value_decomposition()
+
+        revenue = sample_dcf_inputs['revenue']
+        op_income = sample_dcf_inputs['operating_income']
+        nopat = op_income * (1 - custom_assumptions.tax_rate)
+        wacc = result['wacc']
+        ev = result['enterprise_value']
+
+        expected_aip = nopat / wacc
+        expected_growth = ev - expected_aip
+
+        assert decomp['assets_in_place'] == pytest.approx(expected_aip, rel=1e-6)
+        assert decomp['growth_value'] == pytest.approx(expected_growth, rel=1e-6)
+        assert decomp['growth_percent'] == pytest.approx(
+            expected_growth / ev * 100, rel=1e-6
+        )
+
+    def test_raises_before_calculate(self, custom_assumptions):
+        """Must call calculate_fair_value before value_decomposition."""
+        model = DCFModel(custom_assumptions)
+        with pytest.raises(ValueError, match="calculate_fair_value"):
+            model.value_decomposition()
+
+    def test_negative_growth_value_when_roic_below_wacc(self):
+        """When ROIC < WACC, growth value is negative — EV < NOPAT/WACC."""
+        assumptions = DCFAssumptions(
+            revenue_growth_rate=0.05,
+            terminal_growth_rate=0.025,
+            risk_free_rate=0.045,
+            market_risk_premium=0.05,
+            tax_rate=0.21,
+            cost_of_debt=0.05,
+            operating_margin=0.15,
+            sales_to_capital_ratio=0.3,
+        )
+        dcf_inputs = {
+            'revenue': 100_000_000_000,
+            'operating_income': 15_000_000_000,
+            'total_debt': 20_000_000_000,
+            'cash': 10_000_000_000,
+            'short_term_investments': 0,
+            'long_term_investments': 0,
+            'equity': 100_000_000_000,
+            'market_cap': 200_000_000_000,
+            'beta': 1.2,
+        }
+        model = DCFModel(assumptions)
+        model.calculate_fair_value(dcf_inputs, 5e9, 40.0, verbose=True)
+        decomp = model.value_decomposition()
+
+        assert decomp['growth_value'] < 0
+        assert decomp['growth_percent'] < 0
+
+    def test_uses_effective_tax_rate_for_nopat(self):
+        """When effective_tax_rate is set, assets-in-place uses it for current NOPAT."""
+        assumptions = DCFAssumptions(
+            revenue_growth_rate=0.10,
+            terminal_growth_rate=0.025,
+            risk_free_rate=0.045,
+            market_risk_premium=0.05,
+            tax_rate=0.21,
+            effective_tax_rate=0.10,
+            cost_of_debt=0.05,
+        )
+        dcf_inputs = {
+            'revenue': 400_000_000_000,
+            'operating_income': 120_000_000_000,
+            'total_debt': 100_000_000_000,
+            'cash': 60_000_000_000,
+            'short_term_investments': 0,
+            'long_term_investments': 0,
+            'equity': 200_000_000_000,
+            'market_cap': 2_500_000_000_000,
+            'beta': 1.2,
+        }
+        model = DCFModel(assumptions)
+        result = model.calculate_fair_value(dcf_inputs, 10e9, 250.0, verbose=True)
+        decomp = model.value_decomposition()
+
+        nopat_effective = 120_000_000_000 * (1 - 0.10)
+        expected_aip = nopat_effective / result['wacc']
+        assert decomp['assets_in_place'] == pytest.approx(expected_aip, rel=1e-6)

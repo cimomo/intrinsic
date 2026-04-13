@@ -132,6 +132,12 @@ implied = model.reverse_dcf(dcf_inputs, shares, price)               # also dcf_
 
 ### 5. Sanity Check
 After the DCF calculation, verify the output is reasonable:
+- **Value decomposition:** Call `model.value_decomposition()` and display:
+  ```
+  Value decomposition: X% assets in place ($XXB), Y% growth ($XXB)
+  ```
+  - If growth is >80% of EV: "Most of the value comes from growth — every growth and reinvestment assumption is load-bearing."
+  - If growth value is negative: "Growth destroys value at these assumptions (ROIC < WACC) — the company would be worth more with zero growth."
 - **Terminal value concentration:** If PV of terminal value is >85% of enterprise value, flag: "Warning: terminal value represents X% of enterprise value — the valuation depends almost entirely on post-year-10 assumptions." This is common for growth companies but the user should know.
 - **Implausible fair value:** If fair value is negative or >5x current price, flag: "Warning: fair value of $X appears implausible — check input assumptions." Do not stop, but display prominently.
 - **Negative FCF in early years:** If projected FCF is negative in years 1-3, note: "Projected FCF is negative in early years due to high reinvestment — valuation depends on later-year cash flows." This is expected for high-growth, capital-heavy companies.

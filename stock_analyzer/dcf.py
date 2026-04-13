@@ -515,17 +515,19 @@ class DCFModel:
             'wacc_per_year': wacc_per_year,
         }
         self.results.update(terminal_details)
+        self.results.update({
+            'operating_margin': operating_margin,
+            'base_revenue': revenue,
+        })
 
         if verbose:
             self.results.update({
                 'fcf_projections': fcf_projections,
                 'margin_projections': margin_projections,
-                'operating_margin': operating_margin,
                 'sales_to_capital': sales_to_capital,
                 'beta': beta,
                 'debt_to_equity': debt_to_equity,
                 'shares_outstanding': shares_outstanding,
-                'base_revenue': revenue,
                 'cash': cash,
                 'short_term_investments': short_term_investments,
                 'long_term_investments': long_term_investments,
@@ -534,6 +536,27 @@ class DCFModel:
             })
 
         return self.results
+
+    def value_decomposition(self) -> Dict:
+        if not self.results:
+            raise ValueError("Call calculate_fair_value before value_decomposition")
+
+        revenue = self.results['base_revenue']
+        margin = self.results['operating_margin']
+        ev = self.results['enterprise_value']
+        wacc = self.results['wacc']
+
+        tax = self.assumptions.effective_tax_rate if self.assumptions.effective_tax_rate is not None else self.assumptions.tax_rate
+        nopat = revenue * margin * (1 - tax)
+        assets_in_place = nopat / wacc
+        growth_value = ev - assets_in_place
+        growth_pct = (growth_value / ev * 100) if ev != 0 else 0.0
+
+        return {
+            'assets_in_place': assets_in_place,
+            'growth_value': growth_value,
+            'growth_percent': growth_pct,
+        }
 
     def reverse_dcf(
         self,
