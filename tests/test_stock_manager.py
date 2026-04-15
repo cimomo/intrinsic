@@ -153,6 +153,28 @@ class TestManualOverrides:
         assert loaded.revenue_growth_rate == 0.12
 
 
+class TestDamodaranIndustryPersistence:
+    def test_damodaran_industry_round_trips(self, manager):
+        """damodaran_industry survives save/load via assumptions.json."""
+        a = DCFAssumptions(damodaran_industry="Semiconductor")
+        manager.save_assumptions("TEST", a)
+
+        loaded, was_loaded = manager.get_or_create_assumptions("TEST")
+        assert was_loaded is True
+        assert loaded.damodaran_industry == "Semiconductor"
+
+    def test_damodaran_industry_in_manual_overrides(self, manager):
+        """damodaran_industry can be marked as a manual override and survive."""
+        a = DCFAssumptions(damodaran_industry="Semiconductor")
+        manager.save_assumptions("TEST", a, manual_overrides=["damodaran_industry"])
+
+        overrides = manager.load_manual_overrides("TEST")
+        assert "damodaran_industry" in overrides
+
+        loaded, _ = manager.get_or_create_assumptions("TEST")
+        assert loaded.damodaran_industry == "Semiconductor"
+
+
 class TestSaveAnalysis:
     def test_saves_with_auto_filename(self, manager):
         path = manager.save_analysis("MSFT", "Test analysis content")

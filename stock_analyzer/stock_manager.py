@@ -215,6 +215,7 @@ class StockManager:
                 sales_to_capital_ratio=data.get('sales_to_capital_ratio'),
                 terminal_roic=data.get('terminal_roic'),
                 cost_of_capital=data.get('cost_of_capital'),
+                damodaran_industry=data.get('damodaran_industry'),
             )
 
             return assumptions
@@ -264,6 +265,7 @@ class StockManager:
             'sales_to_capital_ratio': assumptions.sales_to_capital_ratio,
             'terminal_roic': assumptions.terminal_roic,
             'cost_of_capital': assumptions.cost_of_capital,
+            'damodaran_industry': assumptions.damodaran_industry,
         }
 
         if manual_overrides:
