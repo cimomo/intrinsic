@@ -88,8 +88,14 @@ Assumptions are split into three tiers based on how much attention they need:
 Derive these from the financial data first, so WACC is established before any judgment calls.
 
 - **Beta:** Use Damodaran's bottom-up beta from the industry table.
-  1. Read the regression beta from `dcf_inputs['beta']` (Alpha Vantage 5y) and the industry from `cached["data"]["overview"]["Industry"]`.
-  2. Compute market D/E from `total_debt / market_cap` (both already in `dcf_inputs`). If `market_cap` is 0 or missing, skip the bottom-up flow entirely and fall back to the regression beta with a warning: "Market cap unavailable — cannot compute D/E for bottom-up beta. Falling back to AV regression beta X.XX." Set `assumptions.beta = av_beta` and add `beta` to `_manual_overrides`.
+
+  **Precedence — check `_manual_overrides` first:**
+  - If `beta` is in `_manual_overrides`: use the stored beta as-is, display "Beta: keeping manual override at X.XX", skip the rest of this section. (Handles users who picked regression or custom beta on a prior run.)
+  - Else if `damodaran_industry` is in `_manual_overrides`: jump to step 5 (recall flow).
+  - Else: proceed to step 1 (first-time flow).
+
+  1. Read the regression beta from `dcf_inputs['beta']` (Alpha Vantage) and the industry from `cached["data"]["overview"]["Industry"]`.
+  2. Compute market D/E from `total_debt / market_cap` (both already in `dcf_inputs`). If `market_cap` is 0 or missing, skip the bottom-up flow this run and use the AV regression beta: set `assumptions.beta = av_beta` (do NOT add to `_manual_overrides` — this is a transient data fallback, not a deliberate user choice; the next calibrate run with valid data will re-attempt bottom-up). Warn: "Market cap unavailable — falling back to AV regression beta X.XX. Re-run /fetch to enable bottom-up beta."
   3. **First-time flow** (no `damodaran_industry` in `_manual_overrides`):
      - Call `damodaran_betas.suggest_industry(av_industry)` to get a suggested Damodaran industry. If `None`, skip to the picker.
      - Call `damodaran_betas.compute_bottom_up_beta(industry, market_de, marginal_tax_rate=0.21)` for the suggested industry. Display:
@@ -128,7 +134,6 @@ Derive these from the financial data first, so WACC is established before any ju
      - If `suggest_industry` returns `None`: warn "no auto-match for AV industry '<X>' — please pick from list" and go to picker.
      - If the stored `damodaran_industry` no longer exists in `damodaran_betas.DAMODARAN_BETAS` (e.g., Damodaran renamed it): warn "Stored industry '<X>' not found in current table — please re-pick" and drop to picker.
      - If `damodaran_betas.DAMODARAN_BETAS_DATE` is older than 14 months: show a banner "Damodaran industry betas are from <DATE>, may be stale — consider checking pages.stern.nyu.edu/~adamodar/pc/datasets/betas.xls".
-  7. **Manual override on `beta` directly:** If `beta` is in `_manual_overrides` (regardless of whether `damodaran_industry` is also there), keep the stored beta value and skip the bottom-up flow. Display: "Beta: keeping manual override at X.XX". This handles options 2 and 4 above on subsequent runs.
 - **Cost of Debt:** Derive from credit rating and Damodaran's default spread table.
   1. Read the synthetic rating from `calculate_dcf_inputs()` (fields: `synthetic_rating`, `synthetic_spread`, `interest_coverage`).
   2. **Web search** for the actual credit rating. Rating agencies publish ratings in many places, and older articles rank high — a naive search almost always returns a stale rating, not the latest action. Use a time-targeted query: search `"{company_name} credit rating S&P Moody's {current_year-1} {current_year}"`. If the first search returns a rating but no source explicitly states a date in {current_year-1} or {current_year} when the rating was assigned, affirmed, or changed, do a **verification search**: `"{company_name} credit rating affirmed upgraded downgraded {current_year}"` to discover the actual current rating. Extract the rating if clearly stated with a recent date (e.g., "Aaa", "AA+").
