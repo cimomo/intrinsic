@@ -121,3 +121,10 @@ DAMODARAN_BETAS: Dict[str, Dict] = {
     "Utility (General)": {"n_firms": 14, "de_ratio": 0.8148, "unlevered_beta": 0.1486, "cash_firm_value": 0.0033, "unlevered_beta_corrected": 0.1491},
     "Utility (Water)": {"n_firms": 14, "de_ratio": 0.6236, "unlevered_beta": 0.2812, "cash_firm_value": 0.0046, "unlevered_beta_corrected": 0.2825},
 }
+
+
+def get_unlevered_beta(industry: str) -> Optional[float]:
+    """Return cash-corrected unlevered beta for an industry, or None if not found."""
+    entry = DAMODARAN_BETAS.get(industry)
+    return entry["unlevered_beta_corrected"] if entry else None
+
