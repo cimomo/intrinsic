@@ -89,7 +89,7 @@ Derive these from the financial data first, so WACC is established before any ju
 
 - **Beta:** Use Damodaran's bottom-up beta from the industry table.
   1. Read the regression beta from `dcf_inputs['beta']` (Alpha Vantage 5y) and the industry from `cached["data"]["overview"]["Industry"]`.
-  2. Compute market D/E from `total_debt / market_cap` (both already in `dcf_inputs`).
+  2. Compute market D/E from `total_debt / market_cap` (both already in `dcf_inputs`). If `market_cap` is 0 or missing, skip the bottom-up flow entirely and fall back to the regression beta with a warning: "Market cap unavailable — cannot compute D/E for bottom-up beta. Falling back to AV regression beta X.XX." Set `assumptions.beta = av_beta` and add `beta` to `_manual_overrides`.
   3. **First-time flow** (no `damodaran_industry` in `_manual_overrides`):
      - Call `damodaran_betas.suggest_industry(av_industry)` to get a suggested Damodaran industry. If `None`, skip to the picker.
      - Call `damodaran_betas.compute_bottom_up_beta(industry, market_de, marginal_tax_rate=0.21)` for the suggested industry. Display:
@@ -119,10 +119,10 @@ Derive these from the financial data first, so WACC is established before any ju
        ```
        Industry: <STORED_INDUSTRY> [manual override — set previously]
        Bottom-up beta: Y.YY (recomputed with current D/E D.DD)
-       
-       Use this? [Enter to accept, or change industry]
        ```
-     - If the user wants to change, drop into the sector-then-industry picker as in option 3.
+     - Use `AskUserQuestion` with these options:
+       - `[1] Accept recomputed beta Y.YY` → set `assumptions.beta = recomputed_levered`. `damodaran_industry` stays as stored, and stays in `_manual_overrides`.
+       - `[2] Pick a different Damodaran industry` → drop into the sector-then-industry picker as in option 3 of the first-time flow.
   6. **Edge cases:**
      - If `cached["data"]["overview"]["Industry"]` is missing or empty: skip the suggestion, go straight to the picker.
      - If `suggest_industry` returns `None`: warn "no auto-match for AV industry '<X>' — please pick from list" and go to picker.
