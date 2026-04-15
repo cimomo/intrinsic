@@ -94,11 +94,11 @@ Derive these from the financial data first, so WACC is established before any ju
   - Else if `damodaran_industry` is in `_manual_overrides`: jump to step 5 (recall flow).
   - Else: proceed to step 1 (first-time flow).
 
-  1. Read the regression beta from `dcf_inputs['beta']` (Alpha Vantage) and the industry from `cached["data"]["overview"]["Industry"]`.
+  1. Read the regression beta from `dcf_inputs['beta']` (Alpha Vantage 5y monthly) and the industry from `cached["data"]["overview"]["Industry"]`.
   2. Compute market D/E from `total_debt / market_cap` (both already in `dcf_inputs`). If `market_cap` is 0 or missing, skip the bottom-up flow this run and use the AV regression beta: set `assumptions.beta = av_beta` (do NOT add to `_manual_overrides` — this is a transient data fallback, not a deliberate user choice; the next calibrate run with valid data will re-attempt bottom-up). Warn: "Market cap unavailable — falling back to AV regression beta X.XX. Re-run /fetch to enable bottom-up beta."
   3. **First-time flow** (no `damodaran_industry` in `_manual_overrides`):
      - Call `damodaran_betas.suggest_industry(av_industry)` to get a suggested Damodaran industry. If `None`, skip to the picker.
-     - Call `damodaran_betas.compute_bottom_up_beta(industry, market_de, marginal_tax_rate=0.21)` for the suggested industry. Display:
+     - Call `damodaran_betas.compute_bottom_up_beta(industry, market_de, marginal_tax_rate=assumptions.tax_rate)` for the suggested industry. Use `assumptions.tax_rate` (not a hardcoded 0.21) so non-US or user-overridden tax rates apply correctly. Display:
        ```
        Beta:
          Regression beta (Alpha Vantage 5y): X.XX
@@ -108,7 +108,7 @@ Derive these from the financial data first, so WACC is established before any ju
          
          Bottom-up beta: Y.YY
            = unlevered_β U.UU (<DAMODARAN_INDUSTRY>, cash-corrected, N firms)
-           × (1 + (1 - 0.21) × D/E D.DD)
+           × (1 + (1 - T.TT) × D/E D.DD)   [T.TT = assumptions.tax_rate]
            
          Recommendation: Y.YY (bottom-up)
            Why: regression betas have ±0.25 standard error; bottom-up
@@ -121,7 +121,8 @@ Derive these from the financial data first, so WACC is established before any ju
        - `[4] Custom beta value` → user enters number. Set `assumptions.beta = entered_value`. Add `beta` to `_manual_overrides`. Do not store `damodaran_industry`.
   4. **Sector-then-industry picker (option 3):** Use two `AskUserQuestion` calls. First, pick sector from `damodaran_betas.DAMODARAN_SECTORS.keys()`. Second, pick industry from `DAMODARAN_SECTORS[chosen_sector]`. Then recompute `compute_bottom_up_beta` with the new industry and apply the same persistence as option 1.
   5. **Recall flow** (`damodaran_industry` is in `_manual_overrides`):
-     - Recompute the bottom-up beta with the stored industry and current D/E. Display:
+     - First, check that the stored industry still exists in `damodaran_betas.DAMODARAN_BETAS`. If not (e.g., Damodaran renamed it), warn "Stored industry '<X>' not found in current table — please re-pick" and drop straight to the sector-then-industry picker (skip the rest of step 5).
+     - Recompute the bottom-up beta with the stored industry and current D/E using `assumptions.tax_rate`. Display:
        ```
        Industry: <STORED_INDUSTRY> [manual override — set previously]
        Bottom-up beta: Y.YY (recomputed with current D/E D.DD)
