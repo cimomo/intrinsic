@@ -128,3 +128,46 @@ def get_unlevered_beta(industry: str) -> Optional[float]:
     entry = DAMODARAN_BETAS.get(industry)
     return entry["unlevered_beta_corrected"] if entry else None
 
+
+def compute_bottom_up_beta(
+    industry: str,
+    market_de: float,
+    marginal_tax_rate: float,
+) -> Dict:
+    """
+    Compute bottom-up levered beta using Damodaran's relevering formula.
+
+    Levered Beta = Unlevered Beta × (1 + (1 - t) × D/E)
+
+    Uses the cash-corrected unlevered beta from the industry table
+    (Damodaran's recommended pure-play beta).
+
+    Args:
+        industry: Damodaran industry name (must exist in DAMODARAN_BETAS)
+        market_de: Company's current market debt-to-equity ratio
+        marginal_tax_rate: Marginal tax rate (typically 0.21 for US)
+
+    Returns:
+        Dict with: levered_beta, unlevered_beta, industry, market_de,
+        tax_rate, n_firms
+
+    Raises:
+        ValueError: If industry not in DAMODARAN_BETAS
+    """
+    entry = DAMODARAN_BETAS.get(industry)
+    if entry is None:
+        raise ValueError(
+            f"Industry '{industry}' not found in DAMODARAN_BETAS table. "
+            f"Check available industries via list(DAMODARAN_BETAS.keys())."
+        )
+    unlevered = entry["unlevered_beta_corrected"]
+    levered = unlevered * (1 + (1 - marginal_tax_rate) * market_de)
+    return {
+        "levered_beta": levered,
+        "unlevered_beta": unlevered,
+        "industry": industry,
+        "market_de": market_de,
+        "tax_rate": marginal_tax_rate,
+        "n_firms": entry["n_firms"],
+    }
+
