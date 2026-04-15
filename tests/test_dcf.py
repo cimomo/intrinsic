@@ -65,6 +65,41 @@ class TestDCFAssumptions:
         assert a.effective_tax_rate is None
 
 
+class TestDCFAssumptionsDamodaranIndustry:
+    def test_default_is_none(self):
+        """damodaran_industry defaults to None for backward compatibility."""
+        a = DCFAssumptions()
+        assert a.damodaran_industry is None
+
+    def test_explicit_value(self):
+        """damodaran_industry accepts a string value."""
+        a = DCFAssumptions(damodaran_industry="Semiconductor")
+        assert a.damodaran_industry == "Semiconductor"
+
+    def test_field_does_not_affect_dcf_math(self):
+        """damodaran_industry is metadata — must not change WACC or fair value."""
+        from stock_analyzer.dcf import DCFModel
+        dcf_inputs = {
+            'revenue': 400_000_000_000,
+            'operating_income': 120_000_000_000,
+            'total_debt': 100_000_000_000,
+            'cash': 60_000_000_000,
+            'short_term_investments': 0,
+            'long_term_investments': 0,
+            'equity': 200_000_000_000,
+            'market_cap': 2_500_000_000_000,
+            'beta': 1.2,
+        }
+        a_without = DCFAssumptions()
+        a_with = DCFAssumptions(damodaran_industry="Semiconductor")
+        m1 = DCFModel(a_without)
+        m2 = DCFModel(a_with)
+        r1 = m1.calculate_fair_value(dcf_inputs, 10e9, 250.0, verbose=True)
+        r2 = m2.calculate_fair_value(dcf_inputs, 10e9, 250.0, verbose=True)
+        assert r1["fair_value"] == pytest.approx(r2["fair_value"], rel=1e-9)
+        assert r1["wacc"] == pytest.approx(r2["wacc"], rel=1e-9)
+
+
 # --- WACC ---
 
 class TestWACC:

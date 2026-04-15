@@ -46,6 +46,11 @@ class DCFAssumptions:
     # None = compute WACC from components (CAPM + cost of debt)
     cost_of_capital: Optional[float] = None
 
+    # Bottom-up beta tracking (audit #9). Pure metadata used by calibrate
+    # to recall the user's prior industry choice across runs. The DCF model
+    # itself does not read this field — beta lives in the existing `beta` field.
+    damodaran_industry: Optional[str] = None
+
     def __post_init__(self):
         """Set terminal growth rate to risk-free rate if not explicitly provided"""
         if self.terminal_growth_rate is None:
