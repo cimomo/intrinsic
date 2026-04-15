@@ -51,7 +51,7 @@ Assumptions are split into three tiers based on how much attention they need:
 **WACC inputs** — derive first so WACC is known before judgment calls.
 
 *Mechanical (auto-derived from data):*
-- Beta (from company overview)
+- Beta (bottom-up: Damodaran industry unlevered beta + company D/E + marginal tax rate; falls back to AV regression on user choice)
 - Cost of Debt (from credit rating + Damodaran default spread)
 - Tax Rate: marginal (21% default) + effective (from income statement; transitions to marginal over projection period)
 
@@ -87,7 +87,48 @@ Assumptions are split into three tiers based on how much attention they need:
 
 Derive these from the financial data first, so WACC is established before any judgment calls.
 
-- **Beta:** Use beta from company overview data. Display: "Beta: X.XX (from overview)"
+- **Beta:** Use Damodaran's bottom-up beta from the industry table.
+  1. Read the regression beta from `dcf_inputs['beta']` (Alpha Vantage 5y) and the industry from `cached["data"]["overview"]["Industry"]`.
+  2. Compute market D/E from `total_debt / market_cap` (both already in `dcf_inputs`).
+  3. **First-time flow** (no `damodaran_industry` in `_manual_overrides`):
+     - Call `damodaran_betas.suggest_industry(av_industry)` to get a suggested Damodaran industry. If `None`, skip to the picker.
+     - Call `damodaran_betas.compute_bottom_up_beta(industry, market_de, marginal_tax_rate=0.21)` for the suggested industry. Display:
+       ```
+       Beta:
+         Regression beta (Alpha Vantage 5y): X.XX
+         
+         Industry: <AV_INDUSTRY> (Alpha Vantage)
+         → Suggested Damodaran industry: <DAMODARAN_INDUSTRY>
+         
+         Bottom-up beta: Y.YY
+           = unlevered_β U.UU (<DAMODARAN_INDUSTRY>, cash-corrected, N firms)
+           × (1 + (1 - 0.21) × D/E D.DD)
+           
+         Recommendation: Y.YY (bottom-up)
+           Why: regression betas have ±0.25 standard error; bottom-up
+           averages across N industry peers and removes cash/leverage noise.
+       ```
+     - Use `AskUserQuestion` with these options:
+       - `[1] Use bottom-up Y.YY (recommended)` → set `assumptions.beta = bottom_up_levered`, `assumptions.damodaran_industry = industry`. Add `damodaran_industry` to `_manual_overrides` (NOT `beta` — leaving `beta` out lets calibrate recompute it next run from current D/E).
+       - `[2] Use regression X.XX (Alpha Vantage)` → set `assumptions.beta = av_beta`. Add `beta` to `_manual_overrides`. Do not store `damodaran_industry`.
+       - `[3] Pick a different Damodaran industry` → drop into the sector-then-industry picker (see below).
+       - `[4] Custom beta value` → user enters number. Set `assumptions.beta = entered_value`. Add `beta` to `_manual_overrides`. Do not store `damodaran_industry`.
+  4. **Sector-then-industry picker (option 3):** Use two `AskUserQuestion` calls. First, pick sector from `damodaran_betas.DAMODARAN_SECTORS.keys()`. Second, pick industry from `DAMODARAN_SECTORS[chosen_sector]`. Then recompute `compute_bottom_up_beta` with the new industry and apply the same persistence as option 1.
+  5. **Recall flow** (`damodaran_industry` is in `_manual_overrides`):
+     - Recompute the bottom-up beta with the stored industry and current D/E. Display:
+       ```
+       Industry: <STORED_INDUSTRY> [manual override — set previously]
+       Bottom-up beta: Y.YY (recomputed with current D/E D.DD)
+       
+       Use this? [Enter to accept, or change industry]
+       ```
+     - If the user wants to change, drop into the sector-then-industry picker as in option 3.
+  6. **Edge cases:**
+     - If `cached["data"]["overview"]["Industry"]` is missing or empty: skip the suggestion, go straight to the picker.
+     - If `suggest_industry` returns `None`: warn "no auto-match for AV industry '<X>' — please pick from list" and go to picker.
+     - If the stored `damodaran_industry` no longer exists in `damodaran_betas.DAMODARAN_BETAS` (e.g., Damodaran renamed it): warn "Stored industry '<X>' not found in current table — please re-pick" and drop to picker.
+     - If `damodaran_betas.DAMODARAN_BETAS_DATE` is older than 14 months: show a banner "Damodaran industry betas are from <DATE>, may be stale — consider checking pages.stern.nyu.edu/~adamodar/pc/datasets/betas.xls".
+  7. **Manual override on `beta` directly:** If `beta` is in `_manual_overrides` (regardless of whether `damodaran_industry` is also there), keep the stored beta value and skip the bottom-up flow. Display: "Beta: keeping manual override at X.XX". This handles options 2 and 4 above on subsequent runs.
 - **Cost of Debt:** Derive from credit rating and Damodaran's default spread table.
   1. Read the synthetic rating from `calculate_dcf_inputs()` (fields: `synthetic_rating`, `synthetic_spread`, `interest_coverage`).
   2. **Web search** for the actual credit rating. Rating agencies publish ratings in many places, and older articles rank high — a naive search almost always returns a stale rating, not the latest action. Use a time-targeted query: search `"{company_name} credit rating S&P Moody's {current_year-1} {current_year}"`. If the first search returns a rating but no source explicitly states a date in {current_year-1} or {current_year} when the rating was assigned, affirmed, or changed, do a **verification search**: `"{company_name} credit rating affirmed upgraded downgraded {current_year}"` to discover the actual current rating. Extract the rating if clearly stated with a recent date (e.g., "Aaa", "AA+").
