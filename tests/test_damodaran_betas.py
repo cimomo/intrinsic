@@ -78,3 +78,36 @@ class TestComputeBottomUpBeta:
                 market_de=0.15,
                 marginal_tax_rate=0.21,
             )
+
+
+from stock_analyzer.damodaran_betas import suggest_industry, AV_TO_DAMODARAN_HINT
+
+
+class TestSuggestIndustry:
+    def test_known_av_industry_maps(self):
+        """Common AV industries map to a Damodaran industry."""
+        assert suggest_industry("SEMICONDUCTORS") == "Semiconductor"
+        assert suggest_industry("SERVICES-PREPACKAGED SOFTWARE") == "Software (System & Application)"
+
+    def test_case_insensitive(self):
+        """Mapping is case-insensitive (AV strings vary)."""
+        assert suggest_industry("semiconductors") == "Semiconductor"
+        assert suggest_industry("Semiconductors") == "Semiconductor"
+
+    def test_unknown_av_industry_returns_none(self):
+        """Unmapped AV strings return None."""
+        assert suggest_industry("MADE UP INDUSTRY ZZZ") is None
+
+    def test_empty_string_returns_none(self):
+        assert suggest_industry("") is None
+
+    def test_none_returns_none(self):
+        assert suggest_industry(None) is None
+
+    def test_all_hint_targets_exist_in_betas_table(self):
+        """Every value in AV_TO_DAMODARAN_HINT must exist as a key in DAMODARAN_BETAS."""
+        missing = [
+            damodaran for damodaran in AV_TO_DAMODARAN_HINT.values()
+            if damodaran not in DAMODARAN_BETAS
+        ]
+        assert missing == [], f"Hints map to non-existent industries: {missing}"

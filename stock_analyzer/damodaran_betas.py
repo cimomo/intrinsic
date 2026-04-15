@@ -171,3 +171,71 @@ def compute_bottom_up_beta(
         "n_firms": entry["n_firms"],
     }
 
+
+# Mapping from Alpha Vantage industry strings (Industry field in OVERVIEW)
+# to Damodaran industry names. AV uses SEC standard industrial classification
+# in uppercase; Damodaran uses his own ~94-category taxonomy. Mismatches are
+# resolved by matching the closest Damodaran category (manual mapping).
+#
+# Keys are normalized to UPPERCASE -- suggest_industry() uppercases its input.
+# Values must EXACTLY match keys in DAMODARAN_BETAS (including any typos
+# preserved from Damodaran's source -- e.g., "Heathcare Information and Technology").
+AV_TO_DAMODARAN_HINT: Dict[str, str] = {
+    # Technology
+    "SEMICONDUCTORS": "Semiconductor",
+    "SEMICONDUCTORS & RELATED DEVICES": "Semiconductor",
+    "SERVICES-PREPACKAGED SOFTWARE": "Software (System & Application)",
+    "SERVICES-COMPUTER PROGRAMMING, DATA PROCESSING, ETC.": "Software (System & Application)",
+    "COMPUTER & OFFICE EQUIPMENT": "Computers/Peripherals",
+    "ELECTRONIC COMPUTERS": "Computers/Peripherals",
+    "COMMUNICATIONS EQUIPMENT, NEC": "Telecom. Equipment",
+    "RADIO & TV BROADCASTING & COMMUNICATIONS EQUIPMENT": "Telecom. Equipment",
+    "SERVICES-COMPUTER INTEGRATED SYSTEMS DESIGN": "Information Services",
+    "SERVICES-COMPUTER PROCESSING & DATA PREPARATION": "Information Services",
+    # Financials
+    "STATE COMMERCIAL BANKS": "Bank (Money Center)",
+    "NATIONAL COMMERCIAL BANKS": "Bank (Money Center)",
+    "SAVINGS INSTITUTIONS, FEDERALLY CHARTERED": "Banks (Regional)",
+    "SECURITY BROKERS, DEALERS & FLOTATION COMPANIES": "Investments & Asset Management",
+    "FIRE, MARINE & CASUALTY INSURANCE": "Insurance (Prop/Cas.)",
+    "LIFE INSURANCE": "Insurance (Life)",
+    # Healthcare
+    "PHARMACEUTICAL PREPARATIONS": "Drugs (Pharmaceutical)",
+    "BIOLOGICAL PRODUCTS, (NO DIAGNOSTIC SUBSTANCES)": "Drugs (Biotechnology)",
+    "ELECTROMEDICAL & ELECTROTHERAPEUTIC APPARATUS": "Healthcare Products",
+    "SERVICES-HEALTH SERVICES": "Healthcare Support Services",
+    # Energy
+    "CRUDE PETROLEUM & NATURAL GAS": "Oil/Gas (Production and Exploration)",
+    "PETROLEUM REFINING": "Oil/Gas (Integrated)",
+    "NATURAL GAS DISTRIBUTION": "Oil/Gas Distribution",
+    # Consumer
+    "RETAIL-VARIETY STORES": "Retail (General)",
+    "RETAIL-DEPARTMENT STORES": "Retail (General)",
+    "RETAIL-EATING PLACES": "Restaurant/Dining",
+    "BEVERAGES": "Beverage (Soft)",
+    # Industrial
+    "MOTOR VEHICLES & PASSENGER CAR BODIES": "Auto & Truck",
+    "AIRCRAFT": "Aerospace/Defense",
+    "GUIDED MISSILES & SPACE VEHICLES & PARTS": "Aerospace/Defense",
+    # Real Estate
+    "REAL ESTATE INVESTMENT TRUSTS": "R.E.I.T.",
+    # Media
+    "SERVICES-MOTION PICTURE & VIDEO TAPE PRODUCTION": "Entertainment",
+    "TELEVISION BROADCASTING STATIONS": "Broadcasting",
+    "CABLE & OTHER PAY TELEVISION SERVICES": "Cable TV",
+    "SERVICES-ADVERTISING": "Advertising",
+}
+
+
+def suggest_industry(av_industry: Optional[str]) -> Optional[str]:
+    """
+    Suggest a Damodaran industry name from an Alpha Vantage industry string.
+
+    Returns the Damodaran name if the AV string is in our mapping, or None
+    if no good match exists. The calibrate skill should always confirm with
+    the user before using the suggestion.
+    """
+    if not av_industry:
+        return None
+    return AV_TO_DAMODARAN_HINT.get(av_industry.strip().upper())
+
