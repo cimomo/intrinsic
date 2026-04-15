@@ -111,3 +111,30 @@ class TestSuggestIndustry:
             if damodaran not in DAMODARAN_BETAS
         ]
         assert missing == [], f"Hints map to non-existent industries: {missing}"
+
+
+from stock_analyzer.damodaran_betas import DAMODARAN_SECTORS
+
+
+class TestDamodaranSectors:
+    def test_sectors_cover_all_industries(self):
+        """Every industry in DAMODARAN_BETAS appears in exactly one sector."""
+        all_sector_industries = []
+        for sector, industries in DAMODARAN_SECTORS.items():
+            all_sector_industries.extend(industries)
+
+        # No duplicates across sectors
+        assert len(all_sector_industries) == len(set(all_sector_industries)), \
+            "Some industry appears in multiple sectors"
+
+        # All beta-table industries are covered
+        missing = set(DAMODARAN_BETAS.keys()) - set(all_sector_industries)
+        assert missing == set(), f"Industries missing from sector grouping: {missing}"
+
+        # No phantom industries (sector entries that aren't in the betas table)
+        phantom = set(all_sector_industries) - set(DAMODARAN_BETAS.keys())
+        assert phantom == set(), f"Sector entries not in DAMODARAN_BETAS: {phantom}"
+
+    def test_reasonable_sector_count(self):
+        """Should have between 8 and 18 sector buckets — enough granularity, not overwhelming."""
+        assert 8 <= len(DAMODARAN_SECTORS) <= 18

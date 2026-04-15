@@ -239,3 +239,131 @@ def suggest_industry(av_industry: Optional[str]) -> Optional[str]:
         return None
     return AV_TO_DAMODARAN_HINT.get(av_industry.strip().upper())
 
+
+# Our own sector grouping for the calibrate skill's industry picker.
+# Damodaran's table doesn't have sector groupings -- we define them.
+# Every industry in DAMODARAN_BETAS must appear in exactly one sector.
+# Industry names must match DAMODARAN_BETAS keys exactly (including the
+# source-preserved typo "Heathcare Information and Technology" and the
+# unspaced "Rubber& Tires").
+DAMODARAN_SECTORS: Dict[str, list] = {
+    "Technology": [
+        "Computer Services",
+        "Computers/Peripherals",
+        "Electronics (Consumer & Office)",
+        "Electronics (General)",
+        "Information Services",
+        "Semiconductor",
+        "Semiconductor Equip",
+        "Software (Entertainment)",
+        "Software (Internet)",
+        "Software (System & Application)",
+    ],
+    "Healthcare": [
+        "Drugs (Biotechnology)",
+        "Drugs (Pharmaceutical)",
+        "Healthcare Products",
+        "Healthcare Support Services",
+        "Heathcare Information and Technology",  # Damodaran typo preserved
+        "Hospitals/Healthcare Facilities",
+    ],
+    "Financials": [
+        "Bank (Money Center)",
+        "Banks (Regional)",
+        "Brokerage & Investment Banking",
+        "Financial Svcs. (Non-bank & Insurance)",
+        "Insurance (General)",
+        "Insurance (Life)",
+        "Insurance (Prop/Cas.)",
+        "Investments & Asset Management",
+        "Reinsurance",
+    ],
+    "Energy": [
+        "Coal & Related Energy",
+        "Green & Renewable Energy",
+        "Oil/Gas (Integrated)",
+        "Oil/Gas (Production and Exploration)",
+        "Oil/Gas Distribution",
+        "Oilfield Svcs/Equip.",
+        "Power",
+    ],
+    "Materials": [
+        "Building Materials",
+        "Chemical (Basic)",
+        "Chemical (Diversified)",
+        "Chemical (Specialty)",
+        "Metals & Mining",
+        "Paper/Forest Products",
+        "Precious Metals",
+        "Rubber& Tires",  # Damodaran spacing preserved
+        "Steel",
+    ],
+    "Industrials": [
+        "Aerospace/Defense",
+        "Business & Consumer Services",
+        "Construction Supplies",
+        "Diversified",
+        "Electrical Equipment",
+        "Engineering/Construction",
+        "Environmental & Waste Services",
+        "Farming/Agriculture",
+        "Machinery",
+        "Office Equipment & Services",
+        "Packaging & Container",
+        "Shipbuilding & Marine",
+    ],
+    "Consumer Discretionary": [
+        "Apparel",
+        "Auto & Truck",
+        "Auto Parts",
+        "Education",
+        "Entertainment",
+        "Furn/Home Furnishings",
+        "Homebuilding",
+        "Hotel/Gaming",
+        "Recreation",
+        "Restaurant/Dining",
+        "Retail (Automotive)",
+        "Retail (Building Supply)",
+        "Retail (Distributors)",
+        "Retail (General)",
+        "Retail (Special Lines)",
+        "Shoe",
+    ],
+    "Consumer Staples": [
+        "Beverage (Alcoholic)",
+        "Beverage (Soft)",
+        "Food Processing",
+        "Food Wholesalers",
+        "Household Products",
+        "Retail (Grocery and Food)",
+        "Tobacco",
+    ],
+    "Communication Services": [
+        "Advertising",
+        "Broadcasting",
+        "Cable TV",
+        "Publishing & Newspapers",
+        "Telecom (Wireless)",
+        "Telecom. Equipment",
+        "Telecom. Services",
+    ],
+    "Utilities": [
+        "Utility (General)",
+        "Utility (Water)",
+    ],
+    "Real Estate": [
+        "R.E.I.T.",
+        "Real Estate (Development)",
+        "Real Estate (General/Diversified)",
+        "Real Estate (Operations & Services)",
+        "Retail (REITs)",
+    ],
+    "Transportation": [
+        "Air Transport",
+        "Transportation",
+        "Transportation (Railroads)",
+        "Trucking",
+    ],
+}
+
