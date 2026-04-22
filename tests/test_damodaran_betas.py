@@ -79,6 +79,34 @@ class TestComputeBottomUpBeta:
                 marginal_tax_rate=0.21,
             )
 
+    def test_negative_market_de_raises(self):
+        """Negative market D/E is economically impossible — reject rather than
+        silently produce levered_beta < unlevered_beta."""
+        with pytest.raises(ValueError, match="market_de must be >= 0"):
+            compute_bottom_up_beta(
+                industry="Semiconductor",
+                market_de=-0.10,
+                marginal_tax_rate=0.21,
+            )
+
+    def test_tax_rate_above_one_raises(self):
+        """Tax rate must be a decimal (e.g., 0.21), not a percentage (21)."""
+        with pytest.raises(ValueError, match=r"marginal_tax_rate must be in \[0, 1\]"):
+            compute_bottom_up_beta(
+                industry="Semiconductor",
+                market_de=0.15,
+                marginal_tax_rate=21,
+            )
+
+    def test_tax_rate_negative_raises(self):
+        """Negative tax rate is nonsense."""
+        with pytest.raises(ValueError, match=r"marginal_tax_rate must be in \[0, 1\]"):
+            compute_bottom_up_beta(
+                industry="Semiconductor",
+                market_de=0.15,
+                marginal_tax_rate=-0.05,
+            )
+
 
 from stock_analyzer.damodaran_betas import suggest_industry, AV_TO_DAMODARAN_HINT
 

@@ -153,13 +153,26 @@ def compute_bottom_up_beta(
         tax_rate, n_firms
 
     Raises:
-        ValueError: If industry not in DAMODARAN_BETAS
+        ValueError: If industry not in DAMODARAN_BETAS, market_de is negative,
+        or marginal_tax_rate is outside [0, 1].
     """
     entry = DAMODARAN_BETAS.get(industry)
     if entry is None:
         raise ValueError(
             f"Industry '{industry}' not found in DAMODARAN_BETAS table. "
             f"Check available industries via list(DAMODARAN_BETAS.keys())."
+        )
+    if market_de < 0:
+        raise ValueError(
+            f"market_de must be >= 0, got {market_de}. "
+            f"Pass market D/E (total_debt / market_cap), not book D/E — "
+            f"negative book equity from aggressive buybacks would produce "
+            f"a nonsensical levered beta below the unlevered beta."
+        )
+    if not (0 <= marginal_tax_rate <= 1):
+        raise ValueError(
+            f"marginal_tax_rate must be in [0, 1] as a decimal, got {marginal_tax_rate}. "
+            f"Did you pass 21 instead of 0.21?"
         )
     unlevered = entry["unlevered_beta_corrected"]
     levered = unlevered * (1 + (1 - marginal_tax_rate) * market_de)
