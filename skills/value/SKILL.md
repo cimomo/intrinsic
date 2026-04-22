@@ -43,6 +43,13 @@ implied = model.reverse_dcf(dcf_inputs, shares, price)               # also dcf_
 - `FinancialMetrics.calculate_dcf_inputs(...)` is a staticmethod. The class has no useful instance — do NOT write `FinancialMetrics(data).calculate_dcf_inputs(...)`.
 - `DCFModel.calculate_fair_value` and `DCFModel.reverse_dcf` both take the **`dcf_inputs` dict**, not the raw cached JSON. Passing raw cached data raises `ValueError: dcf_inputs missing required fields: revenue, operating_income, market_cap`.
 - `DCFModel.get_summary()` takes **zero args** — it reads from `self.results` set by the prior `calculate_fair_value()` call.
+- Credit-spread lookup is `stock_analyzer.metrics.get_spread_for_rating(rating)` → `Optional[float]`; there is no `stock_analyzer.credit_spreads` module. Returns `None` for unknown ratings (including compound strings like `"Aaa/AAA"` — split to `"Aaa"` or `"AAA"` first), so guard before arithmetic or `rf + spread` raises `TypeError: unsupported operand type(s) for +: 'float' and 'NoneType'`.
+
+**Return shapes (all return dicts — don't treat as scalars, don't `.get()` with a guessed default):**
+- `DCFModel.calculate_fair_value(...)` → dict (also assigned to `model.results`). **Trap:** the per-share key is `fair_value`, **NOT** `fair_value_per_share` — `.get('fair_value_per_share', 0)` silently returns 0. `fcf_projections` and `margin_projections` are verbose-only (also `beta`, `debt_to_equity`, `shares_outstanding`, cash/debt fields). Read `model.results.keys()` after the call for the full shape.
+- `DCFModel.reverse_dcf(...)` → dict `{implied_value, fair_value, wacc}`, or `None` if no solution. `implied_value` is the solved growth rate as decimal (e.g. 0.2064 for 20.64%). Use `result['implied_value']`, not `result` — `result * 100` raises `TypeError: dict and int`.
+- `damodaran_betas.compute_bottom_up_beta(...)` → dict `{levered_beta, unlevered_beta, industry, market_de, tax_rate, n_firms}`. Use `result['levered_beta']`, not `result` — formatting the dict raises `TypeError: unsupported format string passed to dict.__format__`.
+- `DCFModel.value_decomposition()` → dict `{assets_in_place, growth_value, growth_percent}`.
 
 ## Steps:
 
