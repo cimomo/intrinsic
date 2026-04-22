@@ -13,7 +13,7 @@ The problem with most DCF models is that small changes in assumptions compound i
 
 ```bash
 claude plugin marketplace add cimomo/intrinsic
-claude plugin install intrinsic
+claude plugin install intrinsic@intrinsic
 ```
 
 Requires Python 3.10+ with `requests` (`pip install requests`) and an [Alpha Vantage API key](https://www.alphavantage.co/support/#api-key) (free, 25 requests/day).
