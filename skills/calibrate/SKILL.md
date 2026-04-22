@@ -87,54 +87,36 @@ Assumptions are split into three tiers based on how much attention they need:
 
 Derive these from the financial data first, so WACC is established before any judgment calls.
 
-- **Beta:** Use Damodaran's bottom-up beta from the industry table.
+- **Beta:** Always compute bottom-up from Damodaran's industry table and re-ask the user. A stored `beta` in `_manual_overrides` is displayed as context, not a bypass — drift from D/E changes, tax rate changes, or a refreshed industry table surfaces every run.
 
-  **Precedence — check `_manual_overrides` first:**
-  - If `beta` is in `_manual_overrides`: use the stored beta as-is, display "Beta: keeping manual override at X.XX", skip the rest of this section. (Handles users who picked regression or custom beta on a prior run.)
-  - Else if `damodaran_industry` is in `_manual_overrides`: jump to step 5 (recall flow).
-  - Else: proceed to step 1 (first-time flow).
+  1. Read the regression beta from `dcf_inputs['beta']` (Alpha Vantage 5y monthly), the AV industry from `cached["data"]["overview"]["Industry"]`, and compute market D/E = `total_debt / market_cap` (both in `dcf_inputs`).
+  2. **Market cap fallback:** If `market_cap` is 0 or missing, skip bottom-up this run. If `beta` is already in `_manual_overrides`, leave `assumptions.beta` and `_manual_overrides` unchanged (honor the prior choice) and warn: "Market cap unavailable — bottom-up disabled this run. Keeping stored beta X.XX." Otherwise, set `assumptions.beta = av_beta` without adding to `_manual_overrides` (transient data gap, not a deliberate choice) and warn: "Market cap unavailable — falling back to AV regression beta X.XX. Re-run /fetch to enable bottom-up beta." Proceed to the next assumption.
+  3. **Pick Damodaran industry** (one of):
+     - If `assumptions.damodaran_industry` is set and still exists in `damodaran_betas.DAMODARAN_BETAS` → use it.
+     - If the stored industry is no longer in the table (Damodaran renamed it) → warn "Stored industry '<X>' not found in current table — please re-pick" and go to the sector-then-industry picker (step 7).
+     - Else call `damodaran_betas.suggest_industry(av_industry)` → if non-None, use the suggestion.
+     - Else (AV industry missing or no match) → warn "no auto-match for AV industry '<X>' — please pick from list" and go to the sector-then-industry picker (step 7).
+  4. Compute `bottom_up = damodaran_betas.compute_bottom_up_beta(industry, market_de, marginal_tax_rate=assumptions.tax_rate)`. Use `assumptions.tax_rate` (not a hardcoded 0.21) so non-US or user-overridden tax rates apply.
+  5. **Display block.** If `damodaran_betas.DAMODARAN_BETAS_DATE` is older than 14 months, prepend a staleness banner: "Damodaran industry betas are from <DATE>, may be stale — consider checking pages.stern.nyu.edu/~adamodar/pc/datasets/betas.xls". Show the `Stored` row only when `beta` is in `_manual_overrides`; show the `Regression (AV)` row only when `av_beta` is not None (AV occasionally omits regression beta for thinly traded stocks). Otherwise omit those rows:
+     ```
+     Beta:
+       Stored:          X.XX   [manual override set previously]
+       Regression (AV): R.RR
+       Bottom-up:       Y.YY
+         = unlevered_β U.UU (<INDUSTRY>, cash-corrected, N firms)
+         × (1 + (1 - T.TT) × D/E D.DD)   [T.TT = assumptions.tax_rate]
 
-  1. Read the regression beta from `dcf_inputs['beta']` (Alpha Vantage 5y monthly) and the industry from `cached["data"]["overview"]["Industry"]`.
-  2. Compute market D/E from `total_debt / market_cap` (both already in `dcf_inputs`). If `market_cap` is 0 or missing, skip the bottom-up flow this run and use the AV regression beta: set `assumptions.beta = av_beta` (do NOT add to `_manual_overrides` — this is a transient data fallback, not a deliberate user choice; the next calibrate run with valid data will re-attempt bottom-up). Warn: "Market cap unavailable — falling back to AV regression beta X.XX. Re-run /fetch to enable bottom-up beta."
-  3. **First-time flow** (no `damodaran_industry` in `_manual_overrides`):
-     - Call `damodaran_betas.suggest_industry(av_industry)` to get a suggested Damodaran industry. If `None`, skip to the picker.
-     - Call `damodaran_betas.compute_bottom_up_beta(industry, market_de, marginal_tax_rate=assumptions.tax_rate)` for the suggested industry. Use `assumptions.tax_rate` (not a hardcoded 0.21) so non-US or user-overridden tax rates apply correctly. Display:
-       ```
-       Beta:
-         Regression beta (Alpha Vantage 5y): X.XX
-         
-         Industry: <AV_INDUSTRY> (Alpha Vantage)
-         → Suggested Damodaran industry: <DAMODARAN_INDUSTRY>
-         
-         Bottom-up beta: Y.YY
-           = unlevered_β U.UU (<DAMODARAN_INDUSTRY>, cash-corrected, N firms)
-           × (1 + (1 - T.TT) × D/E D.DD)   [T.TT = assumptions.tax_rate]
-           
-         Recommendation: Y.YY (bottom-up)
-           Why: regression betas have ±0.25 standard error; bottom-up
-           averages across N industry peers and removes cash/leverage noise.
-       ```
-     - Use `AskUserQuestion` with these options:
-       - `[1] Use bottom-up Y.YY (recommended)` → set `assumptions.beta = bottom_up_levered`, `assumptions.damodaran_industry = industry`. Add `damodaran_industry` to `_manual_overrides` (NOT `beta` — leaving `beta` out lets calibrate recompute it next run from current D/E).
-       - `[2] Use regression X.XX (Alpha Vantage)` → set `assumptions.beta = av_beta`. Add `beta` to `_manual_overrides`. Do not store `damodaran_industry`.
-       - `[3] Pick a different Damodaran industry` → drop into the sector-then-industry picker (see below).
-       - `[4] Custom beta value` → user enters number. Set `assumptions.beta = entered_value`. Add `beta` to `_manual_overrides`. Do not store `damodaran_industry`.
-  4. **Sector-then-industry picker (option 3):** Use two `AskUserQuestion` calls. First, pick sector from `damodaran_betas.DAMODARAN_SECTORS.keys()`. Second, pick industry from `DAMODARAN_SECTORS[chosen_sector]`. Then recompute `compute_bottom_up_beta` with the new industry and apply the same persistence as option 1.
-  5. **Recall flow** (`damodaran_industry` is in `_manual_overrides`):
-     - First, check that the stored industry still exists in `damodaran_betas.DAMODARAN_BETAS`. If not (e.g., Damodaran renamed it), warn "Stored industry '<X>' not found in current table — please re-pick" and drop straight to the sector-then-industry picker (skip the rest of step 5).
-     - Recompute the bottom-up beta with the stored industry and current D/E using `assumptions.tax_rate`. Display:
-       ```
-       Industry: <STORED_INDUSTRY> [manual override — set previously]
-       Bottom-up beta: Y.YY (recomputed with current D/E D.DD)
-       ```
-     - Use `AskUserQuestion` with these options:
-       - `[1] Accept recomputed beta Y.YY` → set `assumptions.beta = recomputed_levered`. `damodaran_industry` stays as stored, and stays in `_manual_overrides`.
-       - `[2] Pick a different Damodaran industry` → drop into the sector-then-industry picker as in option 3 of the first-time flow.
-  6. **Edge cases:**
-     - If `cached["data"]["overview"]["Industry"]` is missing or empty: skip the suggestion, go straight to the picker.
-     - If `suggest_industry` returns `None`: warn "no auto-match for AV industry '<X>' — please pick from list" and go to picker.
-     - If the stored `damodaran_industry` no longer exists in `damodaran_betas.DAMODARAN_BETAS` (e.g., Damodaran renamed it): warn "Stored industry '<X>' not found in current table — please re-pick" and drop to picker.
-     - If `damodaran_betas.DAMODARAN_BETAS_DATE` is older than 14 months: show a banner "Damodaran industry betas are from <DATE>, may be stale — consider checking pages.stern.nyu.edu/~adamodar/pc/datasets/betas.xls".
+       Recommendation: Y.YY (bottom-up)
+         Why: regression betas have ±0.25 standard error; bottom-up
+         averages across N industry peers and removes cash/leverage noise.
+     ```
+  6. **Ask** via `AskUserQuestion`. Build the option list from the items below; include each only when its condition holds. `AskUserQuestion` handles numbering, so list the conditional options without fixed labels.
+     - **Use bottom-up Y.YY (recommended)** — always offered. Persistence: `assumptions.beta = bottom_up`, `assumptions.damodaran_industry = industry`. Add `damodaran_industry` to `_manual_overrides`; **remove `beta` from `_manual_overrides`** if present (so calibrate recomputes next run from current D/E).
+     - **Keep stored X.XX** — offered only when `beta` is in `_manual_overrides`. Persistence: no change to `assumptions.beta`, `damodaran_industry`, or `_manual_overrides`.
+     - **Use regression R.RR (Alpha Vantage)** — offered only when `av_beta` is not None. Persistence: `assumptions.beta = av_beta`. Add `beta` to `_manual_overrides`; clear `damodaran_industry` from the assumption and from `_manual_overrides`.
+     - **Pick a different Damodaran industry** — always offered. Go to the sector-then-industry picker (step 7), then apply the same persistence as "Use bottom-up" above with the newly chosen industry.
+     - **Custom beta value** — always offered. User enters a number via follow-up. `assumptions.beta = entered_value`. Add `beta` to `_manual_overrides`; clear `damodaran_industry` from the assumption and from `_manual_overrides`.
+  7. **Sector-then-industry picker:** Two `AskUserQuestion` calls. First, pick sector from `damodaran_betas.DAMODARAN_SECTORS.keys()`. Second, pick industry from `DAMODARAN_SECTORS[chosen_sector]`. Recompute `compute_bottom_up_beta` with the new industry and apply "Use bottom-up" persistence from step 6.
 - **Cost of Debt:** Derive from credit rating and Damodaran's default spread table.
   1. Read the synthetic rating from `calculate_dcf_inputs()` (fields: `synthetic_rating`, `synthetic_spread`, `interest_coverage`).
   2. **Web search** for the actual credit rating. Rating agencies publish ratings in many places, and older articles rank high — a naive search almost always returns a stale rating, not the latest action. Use a time-targeted query: search `"{company_name} credit rating S&P Moody's {current_year-1} {current_year}"`. If the first search returns a rating but no source explicitly states a date in {current_year-1} or {current_year} when the rating was assigned, affirmed, or changed, do a **verification search**: `"{company_name} credit rating affirmed upgraded downgraded {current_year}"` to discover the actual current rating. Extract the rating if clearly stated with a recent date (e.g., "Aaa", "AA+").
@@ -149,20 +131,27 @@ Derive these from the financial data first, so WACC is established before any ju
      Cost of debt: X.X% (synthetic Rating, coverage X.Xx, spread X.XX%)
        No agency rating found — using synthetic
      ```
-  5. Set `cost_of_debt` in assumptions to the computed value.
-  6. **Sanity check:** After computing or loading cost_of_debt, validate it against risk_free_rate:
-     - If `cost_of_debt < risk_free_rate`: warn and recompute: "Stored cost_of_debt (X.X%) is below risk-free rate (Y.Y%) — economically impossible for any corporate debt. Likely cause: stored as after-tax or legacy value. Recomputing from credit rating."
-     - If `cost_of_debt > 15%`: warn: "Cost of debt (X.X%) is unusually high — verify the credit rating and spread."
-     - This check applies to both freshly computed and loaded values, including manual overrides.
-  - **Manual override:** If `cost_of_debt` is in `_manual_overrides`, keep the user's value — but still run the sanity check. If the override fails validation, warn and ask: "Override (X.X%) is below risk-free rate. Keep it, or recompute from rating? [recompute / keep]"
+  5. Set `cost_of_debt` in assumptions to the computed value. **Skip this step if `cost_of_debt` is in `_manual_overrides`** — the override handler below sets the final value based on the user's choice.
+  6. **Sanity check:** After setting `cost_of_debt` (whether derived or user-chosen override), validate against `risk_free_rate`:
+     - If `cost_of_debt < risk_free_rate`: warn "Cost of debt (X.X%) is below risk-free rate (Y.Y%) — economically implausible for any corporate debt. Likely cause: stored as after-tax or legacy value. Re-run calibrate or use the override handler's `[1] Use derived` to fix."
+     - If `cost_of_debt > 15%`: warn "Cost of debt (X.X%) is unusually high — verify the credit rating and spread."
+     - This check applies to both freshly computed and loaded values, including manual overrides. The warning does not auto-recompute; the user drives any change.
+  - **Manual override:** If `cost_of_debt` is in `_manual_overrides`, still run steps 1-4 (compute the derived value) and display both:
+    ```
+    Cost of debt:
+      Stored:  X.X%   [manual override set previously]
+      Derived: Y.Y%   (Rating — Agency, spread X.XX%)
+    ```
+    Use `AskUserQuestion`:
+    - `[1] Use derived Y.Y% (recommended)` → `assumptions.cost_of_debt = derived`; remove `cost_of_debt` from `_manual_overrides`.
+    - `[2] Keep stored X.X%` → no change. If the stored value fails the sanity check (< risk_free_rate), note: "Your override (X.X%) is below the risk-free rate — kept anyway, but flagged as economically implausible. Pick `[1] Use derived` to replace it."
+    - `[3] Custom value` → user enters; `assumptions.cost_of_debt = entered_value`. Keep `cost_of_debt` in `_manual_overrides`.
 - **Tax Rate (marginal):** Default 21% for US companies. Only change if the company is domiciled in a different tax jurisdiction. Display: "Tax rate (marginal): 21%"
 - **Effective Tax Rate:** Calculate from income statement: tax expense / pre-tax income. Set as `effective_tax_rate` in assumptions. The DCF model transitions from this rate in year 1 to the marginal rate by year 10. Terminal value always uses marginal. Display: "Effective tax rate: X.X% (from income statement) → transitions to 21% marginal"
   - If effective rate is within 2% of marginal, skip the transition — set `effective_tax_rate` to None and note: "Effective rate (X.X%) is close to marginal (21%) — no transition needed"
   - If effective rate is 0% or negative (NOLs, tax credits), set it and note: "Effective rate near 0% — company has tax shield from NOLs. Early-year NOPAT will be higher, transitioning to marginal by year 10"
 
-If a mechanical assumption is in `_manual_overrides`, keep the user's value and note: "Beta: keeping manual override at X.XX (data suggests Y.YY)"
-
-After showing all, ask once: "Any of these to adjust? [Enter to accept all]" — only drill into specifics if the user says yes.
+Beta and cost of debt have already been resolved via the inline flows above. For the remaining mechanical fields (marginal tax rate, effective tax rate), ask once: "Tax settings correct? [Enter to accept, or specify changes]" — only drill into specifics if the user requests a change.
 
 ### 3. WACC Inputs — Market Data (refresh from Damodaran)
 
