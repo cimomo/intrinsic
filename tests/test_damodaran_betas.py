@@ -138,3 +138,38 @@ class TestDamodaranSectors:
     def test_reasonable_sector_count(self):
         """Should have between 8 and 18 sector buckets — enough granularity, not overwhelming."""
         assert 8 <= len(DAMODARAN_SECTORS) <= 18
+
+
+from datetime import date
+
+from stock_analyzer.damodaran_betas import (
+    DAMODARAN_BETAS_DATE,
+    DAMODARAN_BETAS_STALENESS_MONTHS,
+)
+
+
+class TestDamodaranBetasDate:
+    def test_date_is_iso_format(self):
+        """DAMODARAN_BETAS_DATE must parse as an ISO date (catches typos like '2026-1-5')."""
+        date.fromisoformat(DAMODARAN_BETAS_DATE)
+
+    def test_date_not_stale(self):
+        """Fails when the betas table is older than DAMODARAN_BETAS_STALENESS_MONTHS.
+
+        This is an alarm-clock test: it fires on the calendar, not on a code
+        change. Damodaran typically refreshes betas.xls in early January; a
+        14-month threshold gives a 2-month grace period after the annual
+        release. When this fails, refresh from
+        pages.stern.nyu.edu/~adamodar/pc/datasets/betas.xls and bump
+        DAMODARAN_BETAS_DATE.
+        """
+        beta_date = date.fromisoformat(DAMODARAN_BETAS_DATE)
+        today = date.today()
+        months_elapsed = (today.year - beta_date.year) * 12 + (today.month - beta_date.month)
+        if today.day < beta_date.day:
+            months_elapsed -= 1
+        assert months_elapsed < DAMODARAN_BETAS_STALENESS_MONTHS, (
+            f"DAMODARAN_BETAS_DATE is {DAMODARAN_BETAS_DATE}, {months_elapsed} months old. "
+            f"Threshold is {DAMODARAN_BETAS_STALENESS_MONTHS} months. Refresh from "
+            f"pages.stern.nyu.edu/~adamodar/pc/datasets/betas.xls and bump the constant."
+        )

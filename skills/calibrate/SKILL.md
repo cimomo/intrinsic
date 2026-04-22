@@ -97,7 +97,7 @@ Derive these from the financial data first, so WACC is established before any ju
      - Else call `damodaran_betas.suggest_industry(av_industry)` → if non-None, use the suggestion.
      - Else (AV industry missing or no match) → warn "no auto-match for AV industry '<X>' — please pick from list" and go to the sector-then-industry picker (step 7).
   4. Compute `bottom_up = damodaran_betas.compute_bottom_up_beta(industry, market_de, marginal_tax_rate=assumptions.tax_rate)`. Use `assumptions.tax_rate` (not a hardcoded 0.21) so non-US or user-overridden tax rates apply.
-  5. **Display block.** If `damodaran_betas.DAMODARAN_BETAS_DATE` is older than 14 months, prepend a staleness banner: "Damodaran industry betas are from <DATE>, may be stale — consider checking pages.stern.nyu.edu/~adamodar/pc/datasets/betas.xls". Show the `Stored` row only when `beta` is in `_manual_overrides`; show the `Regression (AV)` row only when `av_beta` is not None (AV occasionally omits regression beta for thinly traded stocks). Otherwise omit those rows:
+  5. **Display block.** If `damodaran_betas.DAMODARAN_BETAS_DATE` is older than `damodaran_betas.DAMODARAN_BETAS_STALENESS_MONTHS` months vs. today, prepend a staleness banner: "Damodaran industry betas are from <DATE>, may be stale — consider checking pages.stern.nyu.edu/~adamodar/pc/datasets/betas.xls". Show the `Stored` row only when `beta` is in `_manual_overrides`; show the `Regression (AV)` row only when `av_beta` is not None (AV occasionally omits regression beta for thinly traded stocks). Otherwise omit those rows:
      ```
      Beta:
        Stored:          X.XX   [manual override set previously]

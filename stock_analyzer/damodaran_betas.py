@@ -24,6 +24,7 @@ docs/superpowers/plans/2026-04-14-bottom-up-beta.md, Task 1.
 from typing import Dict, Optional
 
 DAMODARAN_BETAS_DATE = "2026-01-05"
+DAMODARAN_BETAS_STALENESS_MONTHS = 14
 
 DAMODARAN_BETAS: Dict[str, Dict] = {
     "Advertising": {"n_firms": 52, "de_ratio": 0.4020, "unlevered_beta": 0.9301, "cash_firm_value": 0.0773, "unlevered_beta_corrected": 1.0080},
