@@ -18,6 +18,15 @@ claude plugin install intrinsic
 
 Requires Python 3.10+ with `requests` (`pip install requests`) and an [Alpha Vantage API key](https://www.alphavantage.co/support/#api-key) (free, 25 requests/day).
 
+## Update
+
+```bash
+claude plugin marketplace update intrinsic
+claude plugin update intrinsic@intrinsic
+```
+
+Restart Claude Code after the second command. Both are needed — the marketplace cache doesn't auto-refresh, so `plugin update` alone won't see new versions.
+
 ## Quick start
 
 ```
